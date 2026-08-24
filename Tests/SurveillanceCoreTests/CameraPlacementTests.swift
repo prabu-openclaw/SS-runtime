@@ -1,37 +1,52 @@
 import Testing
 @testable import SurveillanceCore
 
+private struct CameraLayout: Equatable {
+    var sockets: [String]
+    var housing: [HousingFamily]
+    var ids: [UInt64]
+    var integrity: [Int]
+}
+
+private func cameraLayout(_ cameras: [SelectedCamera]) -> CameraLayout {
+    CameraLayout(
+        sockets: cameras.map(\.socketId),
+        housing: cameras.map(\.housingFamily),
+        ids: cameras.map(\.entityId.raw),
+        integrity: cameras.map(\.integrity)
+    )
+}
+
+private func cameraLayout(from sim: Simulation) -> CameraLayout {
+    cameraLayout(sim.state.cameras)
+}
+
+private func combatRngState(from sim: Simulation) -> (UInt64, UInt64, UInt64, UInt64) {
+    let rng = sim.state.combatRng
+    return (rng.s0, rng.s1, rng.s2, rng.s3)
+}
+
+private func placementReceipt(from sim: Simulation) -> (String, UInt64, [String]) {
+    let receipt = RunReceipt(sim.state)
+    return (
+        receipt.cameraPlacementVersion,
+        receipt.placementSeed,
+        receipt.selectedSockets.map(\.socketId)
+    )
+}
+
 @Suite(.serialized)
 struct CameraPlacementTests {
     @Test func cameraCP001TenRestartsMatchSocketsHousingAndIds() throws {
-        let seed: UInt64 = 1
-        var firstSockets: [String] = []
-        var firstHousing: [HousingFamily] = []
-        var firstIds: [UInt64] = []
-        for i in 0..<10 {
-            var sim = try Simulation.make(seed: seed)
-            let sockets = sim.state.cameras.map(\.socketId)
-            let housing = sim.state.cameras.map(\.housingFamily)
-            let ids = sim.state.cameras.map(\.entityId.raw)
-            if i == 0 {
-                firstSockets = sockets
-                firstHousing = housing
-                firstIds = ids
-            } else {
-                #expect(sockets == firstSockets)
-                #expect(housing == firstHousing)
-                #expect(ids == firstIds)
-            }
-            let initialIntegrity = sim.state.cameras.map(\.integrity)
-            #expect(initialIntegrity.allSatisfy { $0 == 3 })
+        var sim = try Simulation.make(seed: 1)
+        let first = cameraLayout(from: sim)
+        let startOk = first.integrity == Array(repeating: 3, count: 8)
+        #expect(startOk)
+        for _ in 0..<10 {
             sim.restart()
-            let restarted = sim.state.cameras
-            let restartedSockets = restarted.map(\.socketId)
-            let restartedHousing = restarted.map(\.housingFamily)
-            let restartedIds = restarted.map(\.entityId.raw)
-            #expect(restartedSockets == firstSockets)
-            #expect(restartedHousing == firstHousing)
-            #expect(restartedIds == firstIds)
+            let next = cameraLayout(from: sim)
+            let match = next == first
+            #expect(match)
         }
     }
 
@@ -48,32 +63,42 @@ struct CameraPlacementTests {
             )
         )
         let counts = Dictionary(grouping: cameras, by: \.zoneId).mapValues(\.count)
-        #expect(counts["Z-02"] == 2)
-        #expect(counts["Z-03"] == 1)
-        #expect(counts["Z-04"] == 2)
-        #expect(counts["Z-05"] == 2)
-        #expect(counts["Z-06"] == 1)
+        let z02 = counts["Z-02"] == 2
+        let z03 = counts["Z-03"] == 1
+        let z04 = counts["Z-04"] == 2
+        let z05 = counts["Z-05"] == 2
+        let z06 = counts["Z-06"] == 1
+        let asserts = CameraPlacement.selectedSetPassesRuntimeAsserts(cameras)
+        #expect(z02)
+        #expect(z03)
+        #expect(z04)
+        #expect(z05)
+        #expect(z06)
         #expect(cameras.count == 8)
-        #expect(CameraPlacement.selectedSetPassesRuntimeAsserts(cameras))
+        #expect(asserts)
     }
 
     @Test func cameraCP003TutorialFourFamiliesFourReturnVisible() throws {
         let arena = try ArenaManifest.bundled()
+        var ok = true
         for seed: UInt64 in [1, 2, 3, 7, 11, 42] {
             var allocator = EntityAllocator()
             _ = allocator.next()
-            let cameras = try #require(
-                CameraPlacement.select(
-                    sockets: arena.cameraSockets,
-                    geometry: arena.standardCameraGeometry,
-                    runSeed: seed,
-                    allocator: &allocator
-                )
-            )
-            #expect(cameras.contains { $0.zoneId == "Z-02" && $0.tutorialEligible })
-            #expect(Set(cameras.map(\.housingFamily)).count >= 4)
-            #expect(cameras.filter(\.returnVisible).count >= 4)
+            guard let cameras = CameraPlacement.select(
+                sockets: arena.cameraSockets,
+                geometry: arena.standardCameraGeometry,
+                runSeed: seed,
+                allocator: &allocator
+            ) else {
+                ok = false
+                break
+            }
+            let tutorial = cameras.contains { $0.zoneId == "Z-02" && $0.tutorialEligible }
+            let families = Set(cameras.map(\.housingFamily)).count >= 4
+            let visible = cameras.filter(\.returnVisible).count >= 4
+            if !tutorial || !families || !visible { ok = false }
         }
+        #expect(ok)
     }
 
     @Test func cameraCP004IncompatiblePairShuffledFirstYieldsNextLegal() throws {
@@ -91,10 +116,14 @@ struct CameraPlacementTests {
             CameraPlacement.searchFirstLegal(shuffledByZone: shuffledByZone, housingBySocket: housing)
         )
         let z02 = Set(found.filter { $0.zoneId == "Z-02" }.map(\.socketId))
-        #expect(!z02.isSuperset(of: ["cam-z02-a", "cam-z02-d"]))
-        #expect(z02 == ["cam-z02-a", "cam-z02-b"])
-        #expect(found.filter(\.returnVisible).count >= 4)
-        #expect(found.contains { $0.tutorialEligible })
+        let skippedPair = !z02.isSuperset(of: ["cam-z02-a", "cam-z02-d"])
+        let choseAB = z02 == ["cam-z02-a", "cam-z02-b"]
+        let visible = found.filter(\.returnVisible).count >= 4
+        let tutorial = found.contains { $0.tutorialEligible }
+        #expect(skippedPair)
+        #expect(choseAB)
+        #expect(visible)
+        #expect(tutorial)
     }
 
     @Test func cameraCP005InsufficientZonePoolRejectedBeforeTickOne() throws {
@@ -104,20 +133,24 @@ struct CameraPlacementTests {
                 arena.cameraSockets[i].enabled = false
             }
         }
-        #expect(!CameraPlacement.manifestPoolIsValid(arena.cameraSockets))
+        let poolInvalid = !CameraPlacement.manifestPoolIsValid(arena.cameraSockets)
         var allocator = EntityAllocator()
         _ = allocator.next()
-        #expect(
-            CameraPlacement.select(
-                sockets: arena.cameraSockets,
-                geometry: arena.standardCameraGeometry,
-                runSeed: 1,
-                allocator: &allocator
-            ) == nil
+        let selected = CameraPlacement.select(
+            sockets: arena.cameraSockets,
+            geometry: arena.standardCameraGeometry,
+            runSeed: 1,
+            allocator: &allocator
         )
-        #expect(throws: ArenaValidationError.cameraPlacement) {
+        var rejected = false
+        do {
             _ = try Simulation(seed: 1, arena: arena, content: .bundled())
+        } catch ArenaValidationError.cameraPlacement {
+            rejected = true
         }
+        #expect(poolInvalid)
+        #expect(selected == nil)
+        #expect(rejected)
     }
 
     @Test func cameraCP006NoCompatibleSetFailsArenaValidation() throws {
@@ -127,78 +160,73 @@ struct CameraPlacementTests {
             let id = arena.cameraSockets[i].socketId
             arena.cameraSockets[i].incompatibleSocketIds = z02.filter { $0 != id }
         }
-        #expect(CameraPlacement.manifestPoolIsValid(arena.cameraSockets))
-        #expect(!CameraPlacement.hasCompleteCompatibleSet(arena.cameraSockets))
-        #expect(throws: ArenaValidationError.cameraPlacement) {
+        let poolValid = CameraPlacement.manifestPoolIsValid(arena.cameraSockets)
+        let noSet = !CameraPlacement.hasCompleteCompatibleSet(arena.cameraSockets)
+        var validateRejected = false
+        do {
             try ArenaLoader.validate(arena)
+        } catch ArenaValidationError.cameraPlacement {
+            validateRejected = true
         }
         var allocator = EntityAllocator()
         _ = allocator.next()
-        #expect(
-            CameraPlacement.select(
-                sockets: arena.cameraSockets,
-                geometry: arena.standardCameraGeometry,
-                runSeed: 1,
-                allocator: &allocator
-            ) == nil
+        let selected = CameraPlacement.select(
+            sockets: arena.cameraSockets,
+            geometry: arena.standardCameraGeometry,
+            runSeed: 1,
+            allocator: &allocator
         )
+        #expect(poolValid)
+        #expect(noSet)
+        #expect(validateRejected)
+        #expect(selected == nil)
     }
 
     @Test func cameraCP007DifferentSeedsObserveMoreThanOneLayout() throws {
         let arena = try ArenaManifest.bundled()
         var layouts = Set<String>()
+        var missing = false
         for seed: UInt64 in 1...48 {
             var allocator = EntityAllocator()
             _ = allocator.next()
-            let cameras = try #require(
-                CameraPlacement.select(
-                    sockets: arena.cameraSockets,
-                    geometry: arena.standardCameraGeometry,
-                    runSeed: seed,
-                    allocator: &allocator
-                )
-            )
+            guard let cameras = CameraPlacement.select(
+                sockets: arena.cameraSockets,
+                geometry: arena.standardCameraGeometry,
+                runSeed: seed,
+                allocator: &allocator
+            ) else {
+                missing = true
+                break
+            }
             layouts.insert(CameraPlacement.setKey(cameras))
         }
+        #expect(!missing)
         #expect(layouts.count > 1)
     }
 
     @Test func cameraCP008DestroyedThenSameSeedRestartRestoresOperational() throws {
         var sim = try Simulation.make(seed: 11)
-        let sockets = sim.state.cameras.map(\.socketId)
-        let housing = sim.state.cameras.map(\.housingFamily)
-        let ids = sim.state.cameras.map(\.entityId.raw)
+        let original = cameraLayout(from: sim)
         sim.testing_destroyCameras()
-        let destroyedIntegrity = sim.state.cameras.map(\.integrity)
-        #expect(destroyedIntegrity.allSatisfy { $0 == 0 })
+        let destroyed = cameraLayout(from: sim)
         sim.restart()
-        let restored = sim.state.cameras
-        let restoredSockets = restored.map(\.socketId)
-        let restoredHousing = restored.map(\.housingFamily)
-        let restoredIds = restored.map(\.entityId.raw)
-        let restoredIntegrity = restored.map(\.integrity)
-        #expect(restoredSockets == sockets)
-        #expect(restoredHousing == housing)
-        #expect(restoredIds == ids)
-        #expect(restoredIntegrity.allSatisfy { $0 == 3 })
-        let receipt = RunReceipt(sim.state)
-        let receiptVersion = receipt.cameraPlacementVersion
-        let receiptSeed = receipt.placementSeed
-        let receiptSockets = receipt.selectedSockets.map(\.socketId)
-        #expect(receiptVersion == ContractVersions.cameraPlacement)
-        #expect(receiptSeed == CameraPlacement.placementSeed(runSeed: 11))
-        #expect(receiptSockets == sockets)
+        let restored = cameraLayout(from: sim)
+        let receipt = placementReceipt(from: sim)
+        let destroyedOk = destroyed.integrity == Array(repeating: 0, count: 8)
+        let restoredOk = restored == original && restored.integrity == Array(repeating: 3, count: 8)
+        let receiptOk = receipt.0 == ContractVersions.cameraPlacement
+            && receipt.1 == CameraPlacement.placementSeed(runSeed: 11)
+            && receipt.2 == original.sockets
+        #expect(destroyedOk)
+        #expect(restoredOk)
+        #expect(receiptOk)
     }
 
     @Test func cameraCP009PlacementDoesNotPerturbCombatRng() throws {
         let combat = Xoshiro256StarStar.combat(runSeed: 19)
         let before = (combat.s0, combat.s1, combat.s2, combat.s3)
         let sim = try Simulation.make(seed: 19)
-        let after = sim.state.combatRng
-        #expect(after.s0 == before.0)
-        #expect(after.s1 == before.1)
-        #expect(after.s2 == before.2)
-        #expect(after.s3 == before.3)
+        let after = combatRngState(from: sim)
         var combatAgain = Xoshiro256StarStar.combat(runSeed: 19)
         var sequence: [UInt64] = []
         for _ in 0..<8 { sequence.append(combatAgain.next()) }
@@ -206,35 +234,57 @@ struct CameraPlacementTests {
         _ = CameraPlacement.placementSeed(runSeed: 19)
         var afterPlacement: [UInt64] = []
         for _ in 0..<8 { afterPlacement.append(control.next()) }
+        #expect(after.0 == before.0)
+        #expect(after.1 == before.1)
+        #expect(after.2 == before.2)
+        #expect(after.3 == before.3)
         #expect(sequence == afterPlacement)
     }
+}
 
+@Suite(.serialized)
+struct CameraFairnessTests {
     @Test func cameraCP010EveryLegalSetFairness() throws {
         let arena = try ArenaManifest.bundled()
-        #expect(CameraPlacement.manifestPoolIsValid(arena.cameraSockets))
+        let poolOk = CameraPlacement.manifestPoolIsValid(arena.cameraSockets)
         let legal = CameraPlacement.enumerateLegalSocketSets(arena.cameraSockets)
-        #expect(!legal.isEmpty)
         let originKnownCount = legal.filter { $0.contains { $0.socketId == "cam-z02-d" } }.count
         let z01KnownCount = legal.filter { $0.contains { $0.socketId == "cam-z02-b" } }.count
         let report = CameraFairness.evaluate(arena)
-        #expect(report.legalSetCount == legal.count)
+        let originSockets = report.originInSolidSockets
+        let unhittable = report.unhittableSockets
+        let leaking = report.z01LeakingSockets
+        let legalCount = report.legalSetCount
+        let fieldOrigin = report.fieldOriginKeys.count
+        let pulse = report.pulseStandKeys.count
+        let access = report.accessibilityKeys.count
+        let z01Keys = report.protectedZ01Keys.count
+        let overlap = report.overlapKeys.count
+        let extraction = report.extractionKeys.count
+        let choke = report.chokeKeys.count
+        let zeroContact = report.zeroContactRouteKeys.count
+        let z04 = report.z04BranchKeys.count
+        let captain = report.captainSafeKeys.count
+        #expect(poolOk)
+        #expect(legalCount == legal.count)
+        #expect(!legal.isEmpty)
         // Pinned civic-seam-arena-001.json coordinates are authority; do not rewrite them.
         // cam-z02-d field origin sits in a solid (Civic Pulse stand empty).
         // cam-z02-b field leaks into walkable Z-01; spawn-point alley protection still holds.
-        #expect(report.originInSolidSockets == ["cam-z02-d"])
-        #expect(report.unhittableSockets == ["cam-z02-d"])
-        #expect(report.z01LeakingSockets == ["cam-z02-b"])
-        #expect(report.fieldOriginKeys.count == originKnownCount)
-        #expect(report.pulseStandKeys.count == originKnownCount)
-        #expect(report.accessibilityKeys.count == originKnownCount)
-        #expect(report.protectedZ01Keys.count == z01KnownCount)
+        #expect(originSockets == ["cam-z02-d"])
+        #expect(unhittable == ["cam-z02-d"])
+        #expect(leaking == ["cam-z02-b"])
+        #expect(fieldOrigin == originKnownCount)
+        #expect(pulse == originKnownCount)
+        #expect(access == originKnownCount)
+        #expect(z01Keys == z01KnownCount)
         #expect(originKnownCount > 0)
         #expect(z01KnownCount > 0)
-        #expect(report.overlapKeys.isEmpty)
-        #expect(report.extractionKeys.isEmpty)
-        #expect(report.chokeKeys.isEmpty)
-        #expect(report.zeroContactRouteKeys.isEmpty)
-        #expect(report.z04BranchKeys.isEmpty)
-        #expect(report.captainSafeKeys.isEmpty)
+        #expect(overlap == 0)
+        #expect(extraction == 0)
+        #expect(choke == 0)
+        #expect(zeroContact == 0)
+        #expect(z04 == 0)
+        #expect(captain == 0)
     }
 }

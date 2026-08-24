@@ -13,6 +13,8 @@ jobs:
       - name: Verify pinned specification
         run: grep -q "39b04bb00ca5d3799513efed4e7970ec42975c96" SPEC_BASELINE.md
       - name: Test deterministic core
-        run: swift test --skip CameraPlacementTests --parallel --num-workers 1
+        run: swift test --skip CameraPlacementTests --skip CameraFairnessTests --parallel --num-workers 1
       - name: Test camera placement
         run: swift test --filter CameraPlacementTests --parallel --num-workers 1
+      - name: Test camera fairness
+        run: swift test --filter CameraFairnessTests --parallel --num-workers 1
