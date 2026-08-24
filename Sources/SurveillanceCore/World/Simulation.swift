@@ -866,9 +866,9 @@ public struct Simulation: Equatable, Sendable {
                     runtime.nextSpawnTick = tick + UInt64(interval)
                 } else {
                     runtime.spawnQueue.insert(archetype, at: 0)
-                    runtime.deferTicks += 1
-                    runtime.nextSpawnTick = tick + 30
-                    if runtime.deferTicks >= 300 {
+                    runtime.deferTicks += SpawnFairness.retryIntervalTicks
+                    runtime.nextSpawnTick = tick + UInt64(SpawnFairness.retryIntervalTicks)
+                    if runtime.deferTicks >= SpawnFairness.timeoutTicks {
                         invalidate(.spawnFairnessTimeout)
                     }
                 }
@@ -915,14 +915,16 @@ public struct Simulation: Equatable, Sendable {
     private mutating func spawnEnemy(_ archetype: ArchetypeID, encounter: String, tick: UInt64) -> Bool {
         guard let stats = state.content.standardEnemies[archetype] else { return false }
         guard let sockets = state.arena.enemySpawnSockets[encounter] else { return false }
-        let playerPos = state.player.position
-        let ranked = sockets.sorted { a, b in
-            let da = playerPos.distanceSquared(to: VecI(x: a.x, y: a.y).asQ8)
-            let db = playerPos.distanceSquared(to: VecI(x: b.x, y: b.y).asQ8)
-            if da != db { return da > db }
-            return (a.id ?? "").utf8LessThan(b.id ?? "")
-        }
-        guard let socket = ranked.first else { return false }
+        let closed = Set(state.gates.filter(\.closed).map(\.id))
+        guard let socket = SpawnFairness.select(
+            sockets: sockets,
+            player: state.player.position,
+            heading: state.player.facing,
+            archetypeRadius: stats.radius,
+            manifest: state.arena,
+            closedGateIDs: closed,
+            lethalVolumes: lethalVolumes()
+        ) else { return false }
         let id = state.allocator.next()
         var nextSpecial = tick
         switch archetype {
@@ -951,6 +953,43 @@ public struct Simulation: Equatable, Sendable {
             )
         )
         return true
+    }
+
+    private func lethalVolumes() -> [SpawnFairness.LethalVolume] {
+        var volumes: [SpawnFairness.LethalVolume] = []
+        for mine in state.mines where mine.lifeRemaining > 0 {
+            volumes.append(SpawnFairness.LethalVolume(center: mine.position, radius: mine.radius))
+        }
+        for enemy in state.enemies where enemy.alive {
+            switch enemy.state {
+            case .telegraph, .resolve, .charge, .fire, .throwMine,
+                 .queryTelegraph, .queryResolve, .dashTelegraph, .dash:
+                if let stats = state.content.standardEnemies[enemy.archetype] {
+                    if let pulse = stats.pulse {
+                        volumes.append(SpawnFairness.LethalVolume(center: enemy.position, radius: pulse.range))
+                    }
+                    if stats.charge != nil {
+                        volumes.append(
+                            SpawnFairness.LethalVolume(
+                                center: enemy.lockPosition ?? enemy.position,
+                                radius: enemy.radius
+                            )
+                        )
+                    }
+                    if let mine = stats.mine, let mark = enemy.lockPosition {
+                        volumes.append(SpawnFairness.LethalVolume(center: mark, radius: mine.radius))
+                    }
+                }
+                for marker in enemy.queryMarkers {
+                    volumes.append(
+                        SpawnFairness.LethalVolume(center: marker, radius: DaemonQuery.circleRadius)
+                    )
+                }
+            default:
+                break
+            }
+        }
+        return volumes
     }
 
     private mutating func spawnElite(tick: UInt64) {
@@ -1221,6 +1260,50 @@ public struct Simulation: Equatable, Sendable {
                 encounterId: "test"
             )
         )
+    }
+
+    mutating func testing_setPlayerPosition(_ position: VecI) {
+        state.player.position = position.asQ8
+    }
+
+    mutating func testing_activateEncounter(_ id: String, spawnQueue: [ArchetypeID]? = nil) {
+        guard var runtime = state.encounters[id] else { return }
+        runtime.activated = true
+        runtime.completed = false
+        runtime.waveIndex = 0
+        runtime.deferTicks = 0
+        runtime.living = 0
+        runtime.spawned = 0
+        if let queue = spawnQueue {
+            runtime.spawnQueue = queue
+            runtime.nextSpawnTick = state.tick
+        } else if let spec = state.content.encounters[id], let first = spec.waves.first {
+            runtime.spawnQueue = flatten(first.members)
+            runtime.nextSpawnTick = state.tick
+        }
+        state.encounters[id] = runtime
+    }
+
+    mutating func testing_setEncounterSockets(_ id: String, sockets: [ArenaPoint]) {
+        state.arena.enemySpawnSockets[id] = sockets
+    }
+
+    mutating func testing_obstructEncounterSockets(_ id: String) {
+        guard let sockets = state.arena.enemySpawnSockets[id] else { return }
+        for socket in sockets {
+            let sid = socket.id ?? "\(socket.x)-\(socket.y)"
+            state.arena.permanentSolids.append(
+                NamedRect(
+                    id: "test-obstruct-\(sid)",
+                    name: nil,
+                    owner: nil,
+                    encounterId: nil,
+                    center: VecI(x: socket.x, y: socket.y),
+                    halfSize: VecI(x: 48, y: 48),
+                    initiallyClosed: nil
+                )
+            )
+        }
     }
 
     mutating func testing_fillCivicPool(count: Int) {

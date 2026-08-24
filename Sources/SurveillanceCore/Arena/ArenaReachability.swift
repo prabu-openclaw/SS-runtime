@@ -210,6 +210,40 @@ public enum ArenaReachability {
         ).intersects(civic.aabb)
     }
 
+    public static func forwardGateID(for encounter: String) -> String? {
+        switch encounter {
+        case "M-A": "gate-ma-forward"
+        case "M-B": "gate-mb-forward"
+        case "M-C": "gate-mc-forward"
+        default: nil
+        }
+    }
+
+    public static func previousZoneID(for encounter: String) -> String? {
+        switch encounter {
+        case "M-A": "Z-02"
+        case "M-B": "Z-03"
+        case "M-C": "Z-04"
+        default: nil
+        }
+    }
+
+    /// Authored backtrack aperture with the forward gate closed. Enemies do not block the Player,
+    /// so peak-density parseability is this same corridor (T407 / arena.md §6).
+    public static func escapeApertureOpen(_ manifest: ArenaManifest, encounter: String) -> Bool {
+        guard let previousID = previousZoneID(for: encounter),
+              let previous = zone(manifest, id: previousID),
+              let trigger = manifest.encounterTriggers.first(where: { $0.encounterId == encounter }),
+              let gate = forwardGateID(for: encounter)
+        else { return false }
+        return flood(
+            from: trigger.center,
+            radius: PlayerBody.radiusUnits,
+            manifest: manifest,
+            closedGateIDs: [gate]
+        ).intersects(previous.aabb)
+    }
+
     public static func spawnAlleyProtected(_ manifest: ArenaManifest) -> Bool {
         guard let alley = zone(manifest, id: "Z-01") else { return false }
         if manifest.cameraSockets.contains(where: { $0.zoneId == "Z-01" || alley.aabb.contains($0.position) }) {
