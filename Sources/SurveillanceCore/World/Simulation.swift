@@ -1335,24 +1335,28 @@ public struct Simulation: Equatable, Sendable {
         state.projectiles.append(projectile)
     }
 
+    mutating func testing_completeEncounter(_ id: String) {
+        var runtime = state.encounters[id] ?? EncounterRuntime(
+            id: id,
+            activated: true,
+            completed: true,
+            waveIndex: 0,
+            spawnQueue: [],
+            nextSpawnTick: 0,
+            deferTicks: 0,
+            living: 0,
+            spawned: state.content.encounters[id]?.totals ?? 0,
+            cleanupTick: nil
+        )
+        runtime.activated = true
+        runtime.completed = true
+        runtime.spawned = state.content.encounters[id]?.totals ?? runtime.spawned
+        state.encounters[id] = runtime
+    }
+
     mutating func testing_completeMobAndEliteGraph() {
         for id in EncounterDirector.encounterOrder {
-            var runtime = state.encounters[id] ?? EncounterRuntime(
-                id: id,
-                activated: true,
-                completed: true,
-                waveIndex: 0,
-                spawnQueue: [],
-                nextSpawnTick: 0,
-                deferTicks: 0,
-                living: 0,
-                spawned: state.content.encounters[id]?.totals ?? 0,
-                cleanupTick: nil
-            )
-            runtime.activated = true
-            runtime.completed = true
-            runtime.spawned = state.content.encounters[id]?.totals ?? runtime.spawned
-            state.encounters[id] = runtime
+            testing_completeEncounter(id)
         }
         state.eliteDefeated = true
     }

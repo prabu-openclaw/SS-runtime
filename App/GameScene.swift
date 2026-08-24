@@ -241,6 +241,7 @@ final class GameScene: SKScene {
         bar(HUDLayout.pause(), color: SKColor(white: 0.6, alpha: 0.4))
 
         var hudText = "HP \(snap.playerIntegrity)  EXP \(snap.exposure) \(snap.detection.rawValue.uppercased())"
+        hudText += "  \(snap.combatObjectiveCopy)"
         if snap.cameraObjectiveVisible {
             hudText += "  \(snap.cameraObjectiveCopy)"
         }
