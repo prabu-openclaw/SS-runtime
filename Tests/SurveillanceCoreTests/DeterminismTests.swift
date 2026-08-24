@@ -34,6 +34,13 @@ import Testing
     #expect(a < b)
 }
 
+@Test func quadraticDiscriminantFitsAndRejectsNegative() {
+    #expect(IntMath.quadraticDiscriminant(a: 1, b: 0, c: -1) == 4)
+    #expect(IntMath.quadraticDiscriminant(a: 1, b: 0, c: 1) == nil)
+    let wide = IntMath.quadraticDiscriminant(a: 9_000_000, b: 3_620_000_000, c: 348_000_000_000)
+    #expect(wide != nil)
+}
+
 @Test func canonicalJSONSortsKeysAndHashes() {
     let json = CanonicalJSON.object([
         "b": .integer(2),
