@@ -107,29 +107,3 @@ import Testing
     }
 }
 
-@Test func pulledSanFranciscoEvidenceHashesMatchCatalog() throws {
-    let catalog = try AssetCatalog.bundled()
-    let root = URL(fileURLWithPath: #filePath)
-        .deletingLastPathComponent()
-        .deletingLastPathComponent()
-        .deletingLastPathComponent()
-
-    let groove = try #require(catalog.recordsByID["legacy_san_francisco_decal_cable_groove_01"])
-    let grooveURL = root.appendingPathComponent(groove.source!)
-    let grooveData = try Data(contentsOf: grooveURL)
-    #expect(SHA256.hex(grooveData) == groove.sha256)
-    #expect(groove.dimensions == AssetDimensions(width: 256, height: 256))
-
-    let fog = try #require(catalog.recordsByID["legacy_sfx_san_francisco_hidden_sensor_fog"])
-    let fogURL = root.appendingPathComponent(fog.source!)
-    let fogData = try Data(contentsOf: fogURL)
-    #expect(SHA256.hex(fogData) == fog.sha256)
-    #expect([UInt8](fogData.prefix(4)) == Array("caff".utf8))
-}
-
-@Test func deliveryPNGNameRejectsUnderscoreFreeStems() {
-    #expect(AssetIntake.isValidDeliveryPNGName("player_idle@1x.png"))
-    #expect(AssetIntake.isValidDeliveryPNGName("hud_extraction_ring@2x.png"))
-    #expect(AssetIntake.isValidDeliveryPNGName("hud@1x.png") == false)
-    #expect(AssetIntake.isValidDeliveryPNGName("Player_idle@1x.png") == false)
-}

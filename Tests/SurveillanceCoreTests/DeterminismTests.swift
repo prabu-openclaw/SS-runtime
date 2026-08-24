@@ -4,8 +4,7 @@ import Testing
 
 @Test func sha256KnownVector() {
     #expect(SHA256.hex("abc") == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")
-    #expect(SHA256.hex(Data()) == SHA256.emptyDigest)
-    #expect(SHA256.hex(Data("abc".utf8)) == SHA256.hex("abc"))
+    #expect(SHA256.hex([UInt8]()) == SHA256.emptyDigest)
 }
 
 @Test func splitMixAndXoshiroGoldenSequence() {

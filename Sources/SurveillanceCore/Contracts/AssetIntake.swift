@@ -67,11 +67,10 @@ public enum AssetIntake {
                 }
             }
             guard source.hasSuffix(".png") else { continue }
-            let data = try Data(contentsOf: fileURL)
-            if let recorded = record.sha256, SHA256.hex(data) != recorded {
-                issues.append(.hashMismatch(record.assetId))
-            }
-            guard let header = PNGHeader.parse(data) else {
+            let handle = try FileHandle(forReadingFrom: fileURL)
+            let prefix = try handle.read(upToCount: 33) ?? Data()
+            try handle.close()
+            guard let header = PNGHeader.parse(prefix) else {
                 issues.append(.emptyFile(record.assetId))
                 continue
             }

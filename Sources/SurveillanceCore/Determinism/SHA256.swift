@@ -2,33 +2,9 @@ import Foundation
 
 /// SHA-256 producing lowercase hex digests for canonical state hashing.
 public enum SHA256 {
-    public static func hash(_ data: [UInt8]) -> [UInt8] {
-        data.withUnsafeBytes { hash(bytes: $0, count: data.count) }
-    }
-
-    public static func hash(_ data: Data) -> [UInt8] {
-        data.withUnsafeBytes { hash(bytes: $0, count: data.count) }
-    }
-
-    public static func hex(_ data: [UInt8]) -> String {
-        digestHex(hash(data))
-    }
-
-    public static func hex(_ data: Data) -> String {
-        digestHex(hash(data))
-    }
-
-    public static func hex(_ string: String) -> String {
-        hex(Array(string.utf8))
-    }
-
     public static let emptyDigest = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 
-    private static func digestHex(_ digest: [UInt8]) -> String {
-        digest.map { String(format: "%02x", $0) }.joined()
-    }
-
-    private static func hash(bytes: UnsafeRawBufferPointer, count: Int) -> [UInt8] {
+    public static func hash(_ data: [UInt8]) -> [UInt8] {
         var h: [UInt32] = [
             0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
             0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
@@ -43,15 +19,26 @@ public enum SHA256 {
             0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
             0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
         ]
-        var w = [UInt32](repeating: 0, count: 64)
 
-        func compress(_ block: UnsafeRawBufferPointer) {
+        var message = data
+        let bitCount = UInt64(data.count) * 8
+        message.append(0x80)
+        while message.count % 64 != 56 {
+            message.append(0)
+        }
+        for shift in [56, 48, 40, 32, 24, 16, 8, 0] {
+            message.append(UInt8((bitCount >> shift) & 0xff))
+        }
+
+        var w = [UInt32](repeating: 0, count: 64)
+        var offset = 0
+        while offset < message.count {
             for i in 0..<16 {
-                let o = i * 4
-                w[i] = (UInt32(block[o]) << 24)
-                    | (UInt32(block[o + 1]) << 16)
-                    | (UInt32(block[o + 2]) << 8)
-                    | UInt32(block[o + 3])
+                let o = offset + i * 4
+                w[i] = (UInt32(message[o]) << 24)
+                    | (UInt32(message[o + 1]) << 16)
+                    | (UInt32(message[o + 2]) << 8)
+                    | UInt32(message[o + 3])
             }
             for i in 16..<64 {
                 let s0 = rotateRight(w[i - 15], 7) ^ rotateRight(w[i - 15], 18) ^ (w[i - 15] >> 3)
@@ -79,39 +66,7 @@ public enum SHA256 {
             }
             h[0] &+= a; h[1] &+= b; h[2] &+= c; h[3] &+= d
             h[4] &+= e; h[5] &+= f; h[6] &+= g; h[7] &+= hh
-        }
-
-        let bitCount = UInt64(count) * 8
-        var offset = 0
-        if let base = bytes.baseAddress {
-            while offset + 64 <= count {
-                compress(UnsafeRawBufferPointer(start: base + offset, count: 64))
-                offset += 64
-            }
-        }
-
-        var tail = [UInt8](repeating: 0, count: 128)
-        let rem = count - offset
-        if rem > 0, let base = bytes.baseAddress {
-            for i in 0..<rem {
-                tail[i] = base.load(fromByteOffset: offset + i, as: UInt8.self)
-            }
-        }
-        tail[rem] = 0x80
-        var padded = rem + 1
-        while padded % 64 != 56 {
-            padded += 1
-        }
-        for (index, shift) in [56, 48, 40, 32, 24, 16, 8, 0].enumerated() {
-            tail[padded + index] = UInt8((bitCount >> shift) & 0xff)
-        }
-        let tailCount = padded + 8
-        tail.withUnsafeBytes { raw in
-            var block = 0
-            while block < tailCount {
-                compress(UnsafeRawBufferPointer(start: raw.baseAddress! + block, count: 64))
-                block += 64
-            }
+            offset += 64
         }
 
         var digest: [UInt8] = []
@@ -123,6 +78,14 @@ public enum SHA256 {
             digest.append(UInt8(word & 0xff))
         }
         return digest
+    }
+
+    public static func hex(_ data: [UInt8]) -> String {
+        hash(data).map { String(format: "%02x", $0) }.joined()
+    }
+
+    public static func hex(_ string: String) -> String {
+        hex(Array(string.utf8))
     }
 
     private static func rotateRight(_ value: UInt32, _ bits: UInt32) -> UInt32 {

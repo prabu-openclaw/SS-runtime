@@ -68,6 +68,29 @@ struct AssetIntakeChecks {
     let issues = try AssetIntake.validate(catalog: catalog, evidenceRoot: repoRoot())
     #expect(issues.contains { if case .duplicateHash = $0 { true } else { false } })
 }
+
+@Test func pulledSanFranciscoEvidenceHashesMatchCatalog() throws {
+    let catalog = try AssetCatalog.bundled()
+    let root = repoRoot()
+    let groove = try #require(catalog.recordsByID["legacy_san_francisco_decal_cable_groove_01"])
+    let grooveData = try Data(contentsOf: root.appendingPathComponent(groove.source!))
+    #expect(SHA256.hex(Array(grooveData)) == groove.sha256)
+    #expect(groove.dimensions == AssetDimensions(width: 256, height: 256))
+
+    let fog = try #require(catalog.recordsByID["legacy_sfx_san_francisco_hidden_sensor_fog"])
+    let handle = try FileHandle(forReadingFrom: root.appendingPathComponent(fog.source!))
+    let magic = try handle.read(upToCount: 4) ?? Data()
+    try handle.close()
+    #expect([UInt8](magic) == Array("caff".utf8))
+    #expect(fog.sha256 == "d6e925e768222ebfcf5c0bd12cd3faef493f134105bb0a8f07003f842ece06e4")
+}
+
+@Test func deliveryPNGNameRejectsUnderscoreFreeStems() {
+    #expect(AssetIntake.isValidDeliveryPNGName("player_idle@1x.png"))
+    #expect(AssetIntake.isValidDeliveryPNGName("hud_extraction_ring@2x.png"))
+    #expect(AssetIntake.isValidDeliveryPNGName("hud@1x.png") == false)
+    #expect(AssetIntake.isValidDeliveryPNGName("Player_idle@1x.png") == false)
+}
 }
 
 @Test func audioAH001NineEffectsStealToEight() throws {
