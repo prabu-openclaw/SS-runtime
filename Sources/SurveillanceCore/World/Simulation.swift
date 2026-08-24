@@ -60,7 +60,10 @@ public struct Simulation: Equatable, Sendable {
             lastPulseTick: 0,
             networkBlackout: false,
             arena: arena,
-            content: content
+            content: content,
+            tutorial: TutorialState(),
+            bossRuntime: nil,
+            handedness: .right
         )
         events.emit(
             tick: 0,
@@ -121,6 +124,7 @@ public struct Simulation: Equatable, Sendable {
             return TickResult(tick: state.tick, events: [], digest: state.digest(), outcome: .upgradeSelectionPending)
         }
 
+        let previousPosition = state.player.position
         Movement.apply(
             player: &state.player,
             command: command,
@@ -129,6 +133,9 @@ public struct Simulation: Equatable, Sendable {
             bounds: state.arena.boundsUnits.aabb,
             solids: state.liveSolids,
             events: &events
+        )
+        state.tutorial.noteDisplacement(
+            IsolatedKernel.distanceUnits(previousPosition, state.player.position)
         )
 
         var pulses: [Int] = []
@@ -144,6 +151,40 @@ public struct Simulation: Equatable, Sendable {
             mines: &state.mines,
             exposurePulses: &pulses
         )
+        if var runtime = state.bossRuntime,
+           let index = state.enemies.firstIndex(where: { $0.archetype == .algorithmicModerate && $0.alive })
+        {
+            var pulse: Int?
+            var playerDamage = 0
+            BossSystem.step(
+                boss: &state.enemies[index],
+                runtime: &runtime,
+                player: state.player,
+                tick: tick,
+                emitters: state.arena.captainCameraEmitters,
+                solids: state.liveSolids,
+                allocator: &state.allocator,
+                projectiles: &state.projectiles,
+                exposurePulse: &pulse,
+                playerDamage: &playerDamage,
+                events: &events
+            )
+            state.bossRuntime = runtime
+            state.bossPhase = runtime.phase.rawValue
+            if !state.phasesReached.contains(runtime.phase.rawValue) {
+                state.phasesReached.append(runtime.phase.rawValue)
+            }
+            if let pulse {
+                var amount = IntMath.divHalfAway(Int64(pulse) * Int64(runtime.observationNumerator), 100)
+                if state.upgrade.signalJammer {
+                    amount = IntMath.divHalfAway(amount * 75, 100)
+                }
+                pulses.append(Int(amount))
+            }
+            if playerDamage > 0 {
+                applyPlayerDamage(state.enemies[index].id, amount: playerDamage, tick: tick)
+            }
+        }
 
         let contacts = Detection.sampleContacts(
             cameras: &state.cameras,
@@ -151,6 +192,20 @@ public struct Simulation: Equatable, Sendable {
             tick: tick,
             solids: state.liveSolids
         )
+        state.tutorial.noteContact(!contacts.isEmpty)
+        state.tutorial.lockdownPreempts = state.exposure.lockdownEntered && state.tutorial.phase != .complete
+        let view = PresentationCamera.follow(
+            player: VecI(x: state.player.position.x.unitsTruncated, y: state.player.position.y.unitsTruncated),
+            heading: state.player.facing,
+            bounds: state.arena.boundsUnits
+        )
+        let viewBox = AABB(
+            center: view.center,
+            halfSize: VecI(x: PresentationCamera.visibleWidth / 2, y: PresentationCamera.visibleHeight / 2)
+        )
+        if state.cameras.contains(where: { viewBox.contains($0.position) }) {
+            state.tutorial.noteCameraInViewport()
+        }
 
         fireCivicPulseIfNeeded(tick: tick)
 
@@ -259,9 +314,10 @@ public struct Simulation: Equatable, Sendable {
 
     private mutating func applyUpgrade(_ index: UInt8) {
         let upgrade = UpgradeID.from(index: index)
-        state.upgrade.selected = upgrade
+            state.upgrade.selected = upgrade
         state.upgrade.pending = false
         state.outcome = .playing
+        state.tutorial.noteUpgradeSelected()
         events.emit(
             tick: state.tick,
             phase: 2,
@@ -283,6 +339,10 @@ public struct Simulation: Equatable, Sendable {
             cameras: state.cameras,
             solids: state.liveSolids
         ) else { return }
+
+        if state.cameras.contains(where: { $0.entityId == target.0 && $0.isDamageable }) {
+            state.tutorial.noteCameraTargetable()
+        }
 
         let targetVelocity: VecQ8
         if let enemy = state.enemies.first(where: { $0.id == target.0 }) {
@@ -469,6 +529,7 @@ public struct Simulation: Equatable, Sendable {
                 guard state.cameras[cIndex].isDamageable else { continue }
                 let before = state.cameras[cIndex].integrity
                 state.cameras[cIndex].integrity -= 1
+                state.tutorial.noteCameraImpact()
                 events.emit(
                     tick: tick,
                     phase: 9,
@@ -783,6 +844,7 @@ public struct Simulation: Equatable, Sendable {
                     if id == "M-A" {
                         state.upgrade.pending = true
                         state.outcome = .upgradeSelectionPending
+                        state.tutorial.noteMobAComplete()
                     }
                 }
             }
@@ -886,6 +948,7 @@ public struct Simulation: Equatable, Sendable {
         )
         state.bossPhase = "publicSafety"
         state.phasesReached = ["publicSafety"]
+        state.bossRuntime = BossRuntime()
         events.emit(tick: tick, phase: 16, type: .bossActivated, payload: ["bossId": .string(ArchetypeID.algorithmicModerate.rawValue)])
         events.emit(
             tick: tick,

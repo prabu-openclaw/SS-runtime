@@ -77,11 +77,17 @@ public struct PresentationSnapshot: Equatable, Sendable {
         camerasDestroyed = state.destructions.count
         upgrade = state.upgrade.selected
         upgradePending = state.upgrade.pending
-        tutorialCopy = nil
+        tutorialCopy = state.tutorial.copy.isEmpty ? nil : state.tutorial.copy
+        camera = PresentationCamera.follow(
+            player: VecI(x: state.player.position.x.unitsTruncated, y: state.player.position.y.unitsTruncated),
+            heading: state.player.facing,
+            bounds: state.arena.boundsUnits
+        )
+        handedness = state.handedness
+        extractionSeconds = HUDLayout.extractionSeconds(state.extraction.remaining)
     }
-}
 
-public enum HUDLayout {
-    public static let referenceWidth = 844
-    public static let referenceHeight = 390
+    public var camera: PresentationCamera = PresentationCamera(center: VecI(x: 0, y: 0))
+    public var handedness: Handedness = .right
+    public var extractionSeconds: Int = 5
 }

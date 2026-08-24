@@ -276,7 +276,8 @@ public enum EnemySystem {
             enemy.velocity = .zero
         case .queryTelegraph:
             enemy.state = .queryResolve
-            enemy.stateTicks = 1
+            enemy.stateTicks = 0
+            stepDaemon(&enemy, player: player, speed: speed)
         case .queryResolve:
             enemy.state = .dashTelegraph
             enemy.stateTicks = 36

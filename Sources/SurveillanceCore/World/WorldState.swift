@@ -27,6 +27,9 @@ public struct WorldState: Equatable, Sendable {
     public var networkBlackout: Bool
     public var arena: ArenaManifest
     public var content: CombatContent
+    public var tutorial: TutorialState
+    public var bossRuntime: BossRuntime?
+    public var handedness: Handedness
 
     public var tick: UInt64 { clock.tick }
 
