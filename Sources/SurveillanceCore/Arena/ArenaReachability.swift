@@ -7,11 +7,16 @@ public enum ArenaReachability {
     public static let cameraStandRadius = 64
     public static let consecutiveZoneIDs = ["Z-01", "Z-02", "Z-03", "Z-04", "Z-05", "Z-06", "Z-07"]
 
-    public static func boxes(_ manifest: ArenaManifest, closedGateIDs: Set<String> = []) -> [AABB] {
+    public static func boxes(
+        _ manifest: ArenaManifest,
+        closedGateIDs: Set<String> = [],
+        extraSolids: [AABB] = []
+    ) -> [AABB] {
         var boxes = manifest.permanentSolids.map(\.aabb)
         for gate in manifest.gates where closedGateIDs.contains(gate.id) {
             boxes.append(gate.aabb)
         }
+        boxes.append(contentsOf: extraSolids)
         return boxes
     }
 
@@ -74,10 +79,11 @@ public enum ArenaReachability {
         from start: VecI,
         radius: Int,
         manifest: ArenaManifest,
-        closedGateIDs: Set<String> = []
+        closedGateIDs: Set<String> = [],
+        extraSolids: [AABB] = []
     ) -> Flood {
         let bounds = boundsBox(manifest)
-        let solids = boxes(manifest, closedGateIDs: closedGateIDs)
+        let solids = boxes(manifest, closedGateIDs: closedGateIDs, extraSolids: extraSolids)
         let step = gridStep
         let cols = (manifest.boundsUnits.maxX / step) + 1
         let rows = (manifest.boundsUnits.maxY / step) + 1
@@ -150,12 +156,19 @@ public enum ArenaReachability {
         from start: VecI,
         radius: Int,
         manifest: ArenaManifest,
-        closedGateIDs: Set<String> = []
+        closedGateIDs: Set<String> = [],
+        extraSolids: [AABB] = []
     ) -> Bool {
         let bounds = boundsBox(manifest)
-        let solids = boxes(manifest, closedGateIDs: closedGateIDs)
+        let solids = boxes(manifest, closedGateIDs: closedGateIDs, extraSolids: extraSolids)
         guard isWalkable(point, radius: radius, bounds: bounds, solids: solids) else { return false }
-        return flood(from: start, radius: radius, manifest: manifest, closedGateIDs: closedGateIDs).containsPoint(point)
+        return flood(
+            from: start,
+            radius: radius,
+            manifest: manifest,
+            closedGateIDs: closedGateIDs,
+            extraSolids: extraSolids
+        ).containsPoint(point)
     }
 
     public static func enemySocketsReachable(_ manifest: ArenaManifest) -> Bool {

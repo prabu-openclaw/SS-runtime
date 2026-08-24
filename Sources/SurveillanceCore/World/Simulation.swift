@@ -2,15 +2,17 @@ public struct Simulation: Equatable, Sendable {
     public private(set) var state: WorldState
     private var events = EventBuffer()
 
-    public init(seed: UInt64, arena: ArenaManifest, content: CombatContent) {
+    public init(seed: UInt64, arena: ArenaManifest, content: CombatContent) throws {
         var allocator = EntityAllocator()
         let playerID = allocator.next()
-        let cameras = CameraPlacement.select(
+        guard let cameras = CameraPlacement.select(
             sockets: arena.cameraSockets,
             geometry: arena.standardCameraGeometry,
             runSeed: seed,
             allocator: &allocator
-        ) ?? []
+        ), CameraPlacement.selectedSetPassesRuntimeAsserts(cameras) else {
+            throw ArenaValidationError.cameraPlacement
+        }
         var encounters: [String: EncounterRuntime] = [:]
         for id in EncounterDirector.encounterOrder {
             encounters[id] = EncounterRuntime(
@@ -81,7 +83,7 @@ public struct Simulation: Equatable, Sendable {
     }
 
     public mutating func restart() {
-        self = Simulation(seed: state.seed, arena: state.arena, content: state.content)
+        self = try! Simulation(seed: state.seed, arena: state.arena, content: state.content)
     }
 
     public var isTerminal: Bool {
@@ -1158,6 +1160,12 @@ public struct Simulation: Equatable, Sendable {
         state.upgrade.selected = upgrade
         state.upgrade.pending = false
         state.outcome = .playing
+    }
+
+    mutating func testing_destroyCameras() {
+        for i in state.cameras.indices {
+            state.cameras[i].integrity = 0
+        }
     }
 
     mutating func testing_setExposure(_ value: Int) {

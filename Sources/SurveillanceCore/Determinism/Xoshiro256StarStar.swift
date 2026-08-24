@@ -24,9 +24,7 @@ public struct Xoshiro256StarStar: Equatable, Sendable {
 
     /// Placement stream: `CAMERA01` ASCII constant, isolated from combat RNG.
     public static func cameraPlacement(runSeed: UInt64) -> Xoshiro256StarStar {
-        let streamConstant: UInt64 = 0x4341_4D45_5241_3031
-        let placementSeed = SplitMix64.mix(runSeed ^ streamConstant)
-        return Xoshiro256StarStar(seed: placementSeed)
+        Xoshiro256StarStar(seed: CameraPlacement.placementSeed(runSeed: runSeed))
     }
 
     public static func cosmetic(runSeed: UInt64) -> Xoshiro256StarStar {

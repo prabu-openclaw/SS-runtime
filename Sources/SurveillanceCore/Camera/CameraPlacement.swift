@@ -15,15 +15,110 @@ public struct SelectedCamera: Equatable, Sendable {
     public var fieldOrigin: VecQ8
     public var targetAnchor: VecQ8
     public var wasDetecting: Bool
+    public var incompatibleSocketIds: [String]
 
     public var isDestroyed: Bool { integrity <= 0 }
     public var isDamageable: Bool { integrity > 0 }
+
+    func incompatible(with other: SelectedCamera) -> Bool {
+        incompatibleSocketIds.contains(other.socketId) || other.incompatibleSocketIds.contains(socketId)
+    }
 }
 
 public enum CameraPlacement {
     public static let requiredByZone: [(zone: String, count: Int)] = [
         ("Z-02", 2), ("Z-03", 1), ("Z-04", 2), ("Z-05", 2), ("Z-06", 1)
     ]
+    public static let minimumEnabledByZone: [(zone: String, count: Int)] = [
+        ("Z-02", 4), ("Z-03", 3), ("Z-04", 4), ("Z-05", 4), ("Z-06", 3)
+    ]
+    /// ASCII `CAMERA01`. Placement never consumes combat, encounter, upgrade, or cosmetic RNG.
+    public static let streamConstant: UInt64 = 0x4341_4D45_5241_3031
+
+    public static func placementSeed(runSeed: UInt64) -> UInt64 {
+        SplitMix64.mix(runSeed ^ streamConstant)
+    }
+
+    public static func setKey(_ sockets: [CameraSocket]) -> String {
+        sockets.map(\.socketId).sorted { $0.utf8LessThan($1) }.joined(separator: ",")
+    }
+
+    public static func setKey(_ cameras: [SelectedCamera]) -> String {
+        cameras.map(\.socketId).sorted { $0.utf8LessThan($1) }.joined(separator: ",")
+    }
+
+    /// Cheap manifest assertions: pool sizes, zone membership, geometry, symmetric incompatibilities.
+    /// Does not run BFS or fairness floods.
+    public static func manifestPoolIsValid(_ sockets: [CameraSocket]) -> Bool {
+        let enabled = sockets.filter(\.enabled)
+        var seen = Set<String>()
+        for socket in sockets {
+            if !seen.insert(socket.socketId).inserted { return false }
+            if socket.headingMilliDegrees < 0 || socket.headingMilliDegrees > 359_999 { return false }
+            if socket.rangeUnits < 1 { return false }
+            if socket.fieldAngleMilliDegrees <= 0 || socket.fieldAngleMilliDegrees > 180_000 { return false }
+            if socket.allowedHousingFamilies.isEmpty { return false }
+            if Set(socket.allowedHousingFamilies).count != socket.allowedHousingFamilies.count { return false }
+        }
+        if enabled.contains(where: { $0.zoneId == "Z-01" || $0.zoneId == "Z-07" }) { return false }
+        let allowedZones = Set(requiredByZone.map(\.zone))
+        if enabled.contains(where: { !allowedZones.contains($0.zoneId) }) { return false }
+        let byZone = Dictionary(grouping: enabled, by: \.zoneId)
+        for (zone, need) in minimumEnabledByZone {
+            if (byZone[zone]?.count ?? 0) < need { return false }
+        }
+        let ids = Set(sockets.map(\.socketId))
+        for socket in sockets {
+            for otherId in socket.incompatibleSocketIds {
+                if otherId == socket.socketId { return false }
+                guard let other = sockets.first(where: { $0.socketId == otherId }) else { return false }
+                if !ids.contains(otherId) { return false }
+                if !other.incompatibleSocketIds.contains(socket.socketId) { return false }
+            }
+        }
+        return true
+    }
+
+    /// Quota / incompatibility / tutorial / return-visible socket sets. Housing is seed-specific and excluded.
+    public static func enumerateLegalSocketSets(_ sockets: [CameraSocket]) -> [[CameraSocket]] {
+        let enabled = sockets.filter(\.enabled).sorted { $0.socketId.utf8LessThan($1.socketId) }
+        var results: [[CameraSocket]] = []
+        searchAll(
+            zoneIndex: 0,
+            selected: [],
+            pools: Dictionary(grouping: enabled, by: \.zoneId),
+            results: &results
+        )
+        return results
+    }
+
+    public static func hasCompleteCompatibleSet(_ sockets: [CameraSocket]) -> Bool {
+        !enumerateLegalSocketSets(sockets).isEmpty
+    }
+
+    /// Runtime selected-set assertions. No BFS. Does not reject pinned field-origin coordinates.
+    public static func selectedSetPassesRuntimeAsserts(_ cameras: [SelectedCamera]) -> Bool {
+        guard cameras.count == 8 else { return false }
+        let counts = Dictionary(grouping: cameras, by: \.zoneId).mapValues(\.count)
+        for (zone, need) in requiredByZone {
+            if counts[zone] != need { return false }
+        }
+        if !cameras.contains(where: { $0.zoneId == "Z-02" && $0.tutorialEligible }) { return false }
+        if Set(cameras.map(\.housingFamily)).count < 4 { return false }
+        if cameras.filter(\.returnVisible).count < 4 { return false }
+        if Set(cameras.map(\.socketId)).count != 8 { return false }
+        let ordered = cameras.sorted { $0.socketId.utf8LessThan($1.socketId) }
+        if cameras.map(\.socketId) != ordered.map(\.socketId) { return false }
+        for i in 1..<ordered.count {
+            if ordered[i].entityId <= ordered[i - 1].entityId { return false }
+        }
+        for (i, a) in ordered.enumerated() {
+            for b in ordered[(i + 1)...] where a.incompatible(with: b) {
+                return false
+            }
+        }
+        return true
+    }
 
     public static func select(
         sockets: [CameraSocket],
@@ -31,6 +126,7 @@ public enum CameraPlacement {
         runSeed: UInt64,
         allocator: inout EntityAllocator
     ) -> [SelectedCamera]? {
+        guard manifestPoolIsValid(sockets) else { return nil }
         var rng = Xoshiro256StarStar.cameraPlacement(runSeed: runSeed)
         let enabled = sockets.filter(\.enabled).sorted { $0.socketId.utf8LessThan($1.socketId) }
         var shuffledByZone: [String: [CameraSocket]] = [:]
@@ -47,27 +143,51 @@ public enum CameraPlacement {
             housingBySocket[socket.socketId] = families[0]
         }
 
-        guard let chosen = search(
-            zoneIndex: 0,
-            selected: [],
+        guard let chosen = searchFirstLegal(
             shuffledByZone: shuffledByZone,
             housingBySocket: housingBySocket
         ) else {
             return nil
         }
 
+        let cameras = materialize(
+            chosen,
+            housingBySocket: housingBySocket,
+            geometry: geometry,
+            allocator: &allocator
+        )
+        guard selectedSetPassesRuntimeAsserts(cameras) else { return nil }
+        return cameras
+    }
+
+    /// Depth-first first legal set for a fixed shuffle. Search order, not Dictionary iteration, is authoritative.
+    public static func searchFirstLegal(
+        shuffledByZone: [String: [CameraSocket]],
+        housingBySocket: [String: HousingFamily]
+    ) -> [CameraSocket]? {
+        search(
+            zoneIndex: 0,
+            selected: [],
+            shuffledByZone: shuffledByZone,
+            housingBySocket: housingBySocket
+        )
+    }
+
+    static func materialize(
+        _ chosen: [CameraSocket],
+        housingBySocket: [String: HousingFamily],
+        geometry: StandardCameraGeometry,
+        allocator: inout EntityAllocator
+    ) -> [SelectedCamera] {
         let ordered = chosen.sorted { $0.socketId.utf8LessThan($1.socketId) }
         return ordered.map { socket in
-            let heading = socket.headingMilliDegrees
-            let origin = fieldOrigin(socket: socket, geometry: geometry)
-            let anchor = targetAnchor(socket: socket, geometry: geometry)
-            return SelectedCamera(
+            SelectedCamera(
                 socketId: socket.socketId,
                 entityId: allocator.next(),
                 housingFamily: housingBySocket[socket.socketId]!,
                 zoneId: socket.zoneId,
                 position: socket.position,
-                headingMilliDegrees: heading,
+                headingMilliDegrees: socket.headingMilliDegrees,
                 rangeUnits: socket.rangeUnits,
                 fieldAngleMilliDegrees: socket.fieldAngleMilliDegrees,
                 tutorialEligible: socket.tutorialEligible,
@@ -75,9 +195,77 @@ public enum CameraPlacement {
                 integrity: 3,
                 mountCollisionRadius: geometry.mountCollisionRadiusUnits,
                 hitRadius: geometry.hitRadiusUnits,
-                fieldOrigin: origin,
-                targetAnchor: anchor,
-                wasDetecting: false
+                fieldOrigin: fieldOrigin(socket: socket, geometry: geometry),
+                targetAnchor: targetAnchor(socket: socket, geometry: geometry),
+                wasDetecting: false,
+                incompatibleSocketIds: socket.incompatibleSocketIds
+            )
+        }
+    }
+
+    private static func searchAll(
+        zoneIndex: Int,
+        selected: [CameraSocket],
+        pools: [String: [CameraSocket]],
+        results: inout [[CameraSocket]]
+    ) {
+        if zoneIndex == requiredByZone.count {
+            if selected.count == 8, selected.filter(\.returnVisible).count >= 4 {
+                results.append(selected.sorted { $0.socketId.utf8LessThan($1.socketId) })
+            }
+            return
+        }
+        let spec = requiredByZone[zoneIndex]
+        let pool = pools[spec.zone] ?? []
+        chooseAll(
+            from: pool,
+            need: spec.count,
+            start: 0,
+            picked: [],
+            rest: selected,
+            zoneIndex: zoneIndex,
+            pools: pools,
+            results: &results
+        )
+    }
+
+    private static func chooseAll(
+        from pool: [CameraSocket],
+        need: Int,
+        start: Int,
+        picked: [CameraSocket],
+        rest: [CameraSocket],
+        zoneIndex: Int,
+        pools: [String: [CameraSocket]],
+        results: inout [[CameraSocket]]
+    ) {
+        if picked.count == need {
+            if requiredByZone[zoneIndex].zone == "Z-02",
+               !picked.contains(where: \.tutorialEligible)
+            {
+                return
+            }
+            searchAll(
+                zoneIndex: zoneIndex + 1,
+                selected: rest + picked,
+                pools: pools,
+                results: &results
+            )
+            return
+        }
+        if start >= pool.count { return }
+        for i in start..<pool.count {
+            let candidate = pool[i]
+            if isIncompatible(candidate, with: rest + picked) { continue }
+            chooseAll(
+                from: pool,
+                need: need,
+                start: i + 1,
+                picked: picked + [candidate],
+                rest: rest,
+                zoneIndex: zoneIndex,
+                pools: pools,
+                results: &results
             )
         }
     }
