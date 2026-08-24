@@ -191,6 +191,7 @@ public enum ArenaLoader {
         guard ArenaReachability.viewportMatchesContract(manifest) else { throw ArenaValidationError.bounds }
         guard ArenaReachability.spawnAlleyProtected(manifest) else { throw ArenaValidationError.bounds }
         guard ArenaReachability.diagonalSpine(manifest) else { throw ArenaValidationError.bounds }
+        guard CivicSeamIdentity.zoneNamesMatchContract(manifest) else { throw ArenaValidationError.identity }
     }
 }
 
