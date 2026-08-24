@@ -283,6 +283,64 @@ struct CameraDestructionOrderTests {
         #expect(exposure == 1000)
         #expect(destroyed == 0)
     }
+
+    @Test func cameraCD005SimultaneousFinalImpactsDestroyOnce() throws {
+        var sim = try Simulation.make(seed: 1)
+        sim.testing_keepOnlyCamera(at: 0, integrity: 1)
+        let camera = sim.state.cameras[0]
+        sim.testing_injectPulseHitting(camera: camera)
+        sim.testing_injectPulseHitting(camera: camera)
+        let result = sim.step(command: .neutral(tick: 1))
+        let destroyed = sim.state.destructions.count
+        let exposure = sim.state.exposure.exposure
+        let events = result.events.filter { $0.type == .cameraDestroyed }.count
+        let integrity = sim.state.cameras[0].integrity
+        #expect(destroyed == 1)
+        #expect(events == 1)
+        #expect(exposure == 100)
+        #expect(integrity == 0)
+    }
+
+    @Test func cameraCD006RicochetDestroysTwoCamerasSameTick() throws {
+        var sim = try Simulation.make(seed: 1)
+        sim.testing_selectUpgrade(.ricochetPulse)
+        sim.testing_relocateCamera(at: 0, position: VecI(x: 200, y: 200), headingMilli: MilliDeg.right)
+        sim.testing_relocateCamera(at: 1, position: VecI(x: 280, y: 200), headingMilli: MilliDeg.right)
+        sim.testing_keepCameras([0, 1], integrity: 1)
+        let first = sim.state.cameras[0]
+        let id0 = first.entityId.raw
+        let id1 = sim.state.cameras[1].entityId.raw
+        sim.testing_injectPulseHitting(camera: first)
+        let result = sim.step(command: .neutral(tick: 1))
+        let destroyed = sim.state.destructions.count
+        let exposure = sim.state.exposure.exposure
+        let eventIds = result.events.filter { $0.type == .cameraDestroyed }.compactMap { $0.primaryEntityId?.raw }
+        let ordered = [id0, id1].sorted()
+        let eventsMatch = eventIds == ordered
+        #expect(destroyed == 2)
+        #expect(exposure == 200)
+        #expect(eventIds.count == 2)
+        #expect(eventsMatch)
+    }
+
+    @Test func cameraRicochetDoesNotRehitSurvivingSource() throws {
+        var sim = try Simulation.make(seed: 1)
+        sim.testing_selectUpgrade(.ricochetPulse)
+        sim.testing_relocateCamera(at: 0, position: VecI(x: 200, y: 200), headingMilli: MilliDeg.right)
+        sim.testing_relocateCamera(at: 1, position: VecI(x: 280, y: 200), headingMilli: MilliDeg.right)
+        sim.testing_keepCameras([0, 1], integrity: 3)
+        let first = sim.state.cameras[0]
+        sim.testing_injectPulseHitting(camera: first)
+        _ = sim.step(command: .neutral(tick: 1))
+        let integrity0 = sim.state.cameras[0].integrity
+        let integrity1 = sim.state.cameras[1].integrity
+        let destroyed = sim.state.destructions.count
+        let exposure = sim.state.exposure.exposure
+        #expect(integrity0 == 2)
+        #expect(integrity1 == 2)
+        #expect(destroyed == 0)
+        #expect(exposure == 0)
+    }
 }
 
 private func payloadInt(_ event: AuthoritativeEvent, _ key: String) -> Int {

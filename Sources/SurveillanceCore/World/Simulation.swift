@@ -518,7 +518,11 @@ public struct Simulation: Equatable, Sendable {
                 continue
             }
             if let cIndex = state.cameras.firstIndex(where: { $0.entityId == hit.target }) {
-                guard state.cameras[cIndex].isDamageable else { continue }
+                guard state.cameras[cIndex].isDamageable else {
+                    retireProjectile(at: hit.index)
+                    consumed.insert(hit.projectile)
+                    continue
+                }
                 let before = state.cameras[cIndex].integrity
                 state.cameras[cIndex].integrity -= 1
                 state.tutorial.noteCameraImpact()
@@ -545,6 +549,8 @@ public struct Simulation: Equatable, Sendable {
                         "appliedDamage": .integer(1)
                     ]
                 )
+                // camera-destruction.md §7 / upgrades.md: one projectile damages a Camera at most once.
+                state.projectiles[hit.index].hitEntityIds.append(hit.target)
                 if state.cameras[cIndex].integrity == 0 {
                     destroyed.insert(hit.target)
                     destroyCamera(at: cIndex, projectile: hit.projectile, tick: tick)
@@ -561,6 +567,10 @@ public struct Simulation: Equatable, Sendable {
 
         for (source, origin, excluded) in ricochetFrom {
             spawnRicochet(from: source, origin: origin, excluding: excluded, tick: tick)
+        }
+        // upgrades.md: continuation resolves after the first hit in the same damage phase.
+        if !ricochetFrom.isEmpty {
+            destroyed.formUnion(resolveDamage(tick: tick))
         }
         return destroyed
     }
@@ -591,12 +601,16 @@ public struct Simulation: Equatable, Sendable {
             }
             return
         }
+        var hitEntityIds = source.hitEntityIds
+        if !hitEntityIds.contains(excluding) {
+            hitEntityIds.append(excluding)
+        }
         let velocity = Targeting.direct(from: origin, to: next.anchor, speed: Int64(Targeting.projectileSpeedPerTick) * Q8.scale)
         let ricochet = ProjectileBody(
             id: source.id,
             ownerId: source.ownerId,
             kind: .ricochet,
-            position: origin + velocity,
+            position: next.anchor,
             previous: origin,
             velocity: velocity,
             radius: source.radius,
@@ -606,7 +620,7 @@ public struct Simulation: Equatable, Sendable {
             lifetime: Targeting.projectileLifetime,
             distanceTravelledQ8: 0,
             maxTravelQ8: range,
-            hitEntityIds: source.hitEntityIds,
+            hitEntityIds: hitEntityIds,
             alive: true
         )
         if let index = state.projectiles.firstIndex(where: { $0.id == source.id }) {
@@ -1257,6 +1271,26 @@ public struct Simulation: Equatable, Sendable {
         )
         guard state.civicPool.checkout(projectile) else { return }
         state.projectiles.append(projectile)
+    }
+
+    mutating func testing_keepCameras(_ indices: Set<Int>, integrity: Int) {
+        for i in state.cameras.indices {
+            state.cameras[i].integrity = indices.contains(i) ? integrity : 0
+        }
+    }
+
+    mutating func testing_relocateCamera(at index: Int, position: VecI, headingMilli: Int) {
+        guard state.cameras.indices.contains(index) else { return }
+        guard var socket = state.arena.cameraSockets.first(where: { $0.socketId == state.cameras[index].socketId }) else {
+            return
+        }
+        socket.position = position
+        socket.headingMilliDegrees = headingMilli
+        let geometry = state.arena.standardCameraGeometry
+        state.cameras[index].position = position
+        state.cameras[index].headingMilliDegrees = headingMilli
+        state.cameras[index].fieldOrigin = CameraPlacement.fieldOrigin(socket: socket, geometry: geometry)
+        state.cameras[index].targetAnchor = CameraPlacement.targetAnchor(socket: socket, geometry: geometry)
     }
 
     mutating func testing_destroyCameras() {
