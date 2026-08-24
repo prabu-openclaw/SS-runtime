@@ -93,22 +93,21 @@ public struct BossRuntime: Equatable, Sendable {
         activeEmitter = nil
     }
 
-    public mutating func syncPhase(hp: Int) -> BossPhase? {
+    public mutating func syncPhase(hp: Int) -> (before: BossPhase, after: BossPhase)? {
+        let before = phase
         let next = BossPhase.from(hp: hp)
-        if next != phase {
-            phase = next
-            sequenceIndex = 0
-            recoveryRemaining = 45
-            telegraphRemaining = 0
-            attackRemaining = 0
-            cooldownRemaining = 0
-            currentAttack = nil
-            lockedHeadingMilli = nil
-            fieldRemaining = 0
-            activeEmitter = nil
-            return next
-        }
-        return nil
+        guard next != before else { return nil }
+        phase = next
+        sequenceIndex = 0
+        recoveryRemaining = 45
+        telegraphRemaining = 0
+        attackRemaining = 0
+        cooldownRemaining = 0
+        currentAttack = nil
+        lockedHeadingMilli = nil
+        fieldRemaining = 0
+        activeEmitter = nil
+        return (before, next)
     }
 
     public mutating func retireField() {
@@ -136,7 +135,7 @@ public enum BossSystem {
         baseSpeed: Int,
         baseContact: Int
     ) {
-        if let changed = runtime.syncPhase(hp: boss.integrity), boss.alive {
+        if let transition = runtime.syncPhase(hp: boss.integrity), boss.alive {
             retireBossProjectiles(&projectiles)
             events.emit(
                 tick: tick,
@@ -144,8 +143,8 @@ public enum BossSystem {
                 type: .bossPhaseChanged,
                 primary: boss.id,
                 payload: [
-                    "before": .null,
-                    "after": .string(changed.rawValue),
+                    "before": .string(transition.before.rawValue),
+                    "after": .string(transition.after.rawValue),
                     "remainingIntegrity": .integer(Int64(boss.integrity))
                 ]
             )

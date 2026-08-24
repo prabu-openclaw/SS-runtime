@@ -120,8 +120,9 @@ struct GrayscaleSystemsTests {
 
     @Test func bossBO003BatchSkipsToTemporarySafeguard() {
         var runtime = BossRuntime()
-        let changed = runtime.syncPhase(hp: 390)
-        #expect(changed == .temporarySafeguard)
+        let transition = runtime.syncPhase(hp: 390)
+        #expect(transition?.before == .publicSafety)
+        #expect(transition?.after == .temporarySafeguard)
         #expect(runtime.recoveryRemaining == 45)
     }
 

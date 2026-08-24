@@ -158,6 +158,64 @@ struct ContractVectorTests {
         #expect(!mobAComplete)
     }
 
+    @Test func bossBO004PhaseTransitionDuringTelegraphCancelsAttack() {
+        let result = IsolatedKernel.bossPhaseTransitionDuringTelegraph()
+        #expect(result.after == .temporarySafeguard)
+        #expect(result.recovery == 44)
+        #expect(result.telegraph == 0)
+        #expect(result.attack == nil)
+        #expect(result.liveBossBolts == 0)
+    }
+
+    @Test func bossBO008DefeatRetiresFieldAndProjectiles() throws {
+        var sim = try Simulation.make(seed: 1)
+        sim.testing_installBoss(integrity: 1)
+        sim.testing_injectBossBolt()
+        sim.testing_activateBossField(remaining: 60)
+        sim.testing_defeatBoss()
+        let liveBossBolts = sim.state.projectiles.filter { $0.kind == .bossBolt && $0.alive }.count
+        let fieldRemaining = sim.state.bossRuntime?.fieldRemaining ?? -1
+        let activeEmitter = sim.state.bossRuntime?.activeEmitter
+        let defeated = sim.state.bossDefeated
+        #expect(defeated)
+        #expect(liveBossBolts == 0)
+        #expect(fieldRemaining == 0)
+        #expect(activeEmitter == nil)
+    }
+
+    @Test func bossBO009SameTickPlayerDeathIsTerminalFailure() throws {
+        var sim = try Simulation.make(seed: 1)
+        sim.testing_installBoss(integrity: 10)
+        let bossPosition = sim.state.enemies.first(where: { $0.archetype == .algorithmicModerate })!.position
+        sim.testing_setPlayerIntegrity(10)
+        sim.testing_injectHostileBolt(damage: 10)
+        sim.testing_injectPulseHitting(position: bossPosition)
+        let result = sim.step(command: .neutral(tick: 1))
+        let outcome = result.outcome
+        let defeated = sim.state.bossDefeated
+        let bossEvents = result.events.filter { $0.type == .bossDefeated }.count
+        #expect(outcome == .failure)
+        #expect(defeated)
+        #expect(bossEvents == 1)
+    }
+
+    @Test func bossBO010ZeroCamerasDestroyedBossDefeatArmsExtraction() throws {
+        var sim = try Simulation.make(seed: 1)
+        sim.testing_completeMobAndEliteGraph()
+        sim.testing_installBoss(integrity: 10)
+        let bossPosition = sim.state.enemies.first(where: { $0.archetype == .algorithmicModerate })!.position
+        sim.testing_injectPulseHitting(position: bossPosition)
+        let result = sim.step(command: .neutral(tick: 1))
+        let destroyed = sim.state.destructions.count
+        let defeated = sim.state.bossDefeated
+        let armed = sim.state.extraction.armed
+        let outcome = result.outcome
+        #expect(destroyed == 0)
+        #expect(defeated)
+        #expect(armed)
+        #expect(outcome == .playing)
+    }
+
     @Test func encounterEN001WaveTotals() {
         let content = CombatContent.bundled()
         #expect(content.encounters["M-A"]?.totals == 14)
