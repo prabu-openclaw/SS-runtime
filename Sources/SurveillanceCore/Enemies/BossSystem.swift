@@ -4,6 +4,18 @@ public enum BossPhase: String, Equatable, Sendable {
     case temporarySafeguard
     case independentReview
 
+    public static let receiptOrder: [BossPhase] = [
+        .publicSafety,
+        .civilLiberties,
+        .temporarySafeguard,
+        .independentReview
+    ]
+
+    public static func canonicalPhasesReached(_ visited: [String]) -> [String] {
+        let seen = Set(visited)
+        return receiptOrder.map(\.rawValue).filter { seen.contains($0) }
+    }
+
     public static func from(hp: Int) -> BossPhase {
         switch hp {
         case 600...800: .publicSafety

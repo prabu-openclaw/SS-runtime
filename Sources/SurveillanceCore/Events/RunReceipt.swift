@@ -45,9 +45,9 @@ public struct RunReceipt: Equatable, Sendable {
         camerasDestroyed = state.destructions.count
         networkBlackout = state.networkBlackout
         upgrade = state.upgrade.selected
-        bossPhases = state.phasesReached
-        bossDefeated = state.bossDefeated
         combatAuthority = CombatAuthoritySnapshot.project(state)
+        bossPhases = combatAuthority.bossPhasesReached
+        bossDefeated = combatAuthority.bossDefeated
         extractionArmed = state.extraction.armed
         diagnostics = state.diagnostic.map { [$0.rawValue] } ?? []
         destructions = state.destructions.sorted {
@@ -99,6 +99,7 @@ public struct RunReceipt: Equatable, Sendable {
                 "combatAuthority": .object([
                     "mobEncountersComplete": .integer(Int64(combatAuthority.mobEncountersComplete)),
                     "mobEncountersRequired": .integer(Int64(combatAuthority.mobEncountersRequired)),
+                    "currentNode": .string(combatAuthority.currentNode.rawValue),
                     "elite": .object([
                         "id": .string(EncounterDirector.eliteReceiptId),
                         "defeated": .bool(combatAuthority.eliteDefeated)
@@ -115,7 +116,7 @@ public struct RunReceipt: Equatable, Sendable {
                     "camerasTotal": .integer(8),
                     "complete": .bool(networkBlackout)
                 ]),
-                "extraction": .object(["armed": .bool(extractionArmed)])
+                "extractionArmed": .bool(extractionArmed)
             ]),
             "cameraDestructions": .array(destructions.map { record in
                 .object([
@@ -139,8 +140,8 @@ public struct RunReceipt: Equatable, Sendable {
             ]),
             "upgrade": upgrade.map { .string($0.rawValue) } ?? .null,
             "boss": .object([
-                "phasesReached": .array(bossPhases.map { .string($0) }),
-                "defeated": .bool(bossDefeated)
+                "phasesReached": .array(combatAuthority.bossPhasesReached.map { .string($0) }),
+                "defeated": .bool(combatAuthority.bossDefeated)
             ]),
             "diagnostics": .array(diagnostics.map { .string($0) }),
             "cameraPlacement": .object([
