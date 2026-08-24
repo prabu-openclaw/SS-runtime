@@ -256,6 +256,33 @@ struct CameraDestructionOrderTests {
         #expect(!receiptBlackout)
         #expect(copy == "CAM 7/8")
     }
+
+    @Test func cameraT414BlackoutWithoutCombatDoesNotArm() throws {
+        var sim = try Simulation.make(seed: 1)
+        for index in 0..<8 {
+            sim.testing_destroyCameraAtIndex(index)
+            _ = sim.step(command: .neutral(tick: UInt64(index + 1)))
+        }
+        let destroyed = sim.state.destructions.count
+        let blackout = sim.state.networkBlackout
+        let armed = sim.state.extraction.armed
+        #expect(destroyed == 8)
+        #expect(blackout)
+        #expect(!armed)
+    }
+
+    @Test func cameraT414LockdownDoesNotBlockExtraction() throws {
+        var sim = try Simulation.make(seed: 1)
+        sim.testing_setExposure(1000)
+        sim.testing_completeCombatGraph()
+        _ = sim.step(command: .neutral(tick: 1))
+        let armed = sim.state.extraction.armed
+        let exposure = sim.state.exposure.exposure
+        let destroyed = sim.state.destructions.count
+        #expect(armed)
+        #expect(exposure == 1000)
+        #expect(destroyed == 0)
+    }
 }
 
 private func payloadInt(_ event: AuthoritativeEvent, _ key: String) -> Int {

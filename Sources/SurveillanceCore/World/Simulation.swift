@@ -1089,13 +1089,15 @@ public struct Simulation: Equatable, Sendable {
 
     private mutating func resolveObjectives(tick: UInt64) {
         if !state.extraction.armed,
-           state.encounters["M-A"]?.completed == true,
-           state.encounters["M-B"]?.completed == true,
-           state.encounters["M-C"]?.completed == true,
-           state.eliteDefeated,
-           state.bossDefeated,
-           state.player.isAlive,
-           state.outcome != .failure
+           EncounterDirector.extractionArmed(
+            mobAComplete: state.encounters["M-A"]?.completed == true,
+            mobBComplete: state.encounters["M-B"]?.completed == true,
+            mobCComplete: state.encounters["M-C"]?.completed == true,
+            eliteDefeated: state.eliteDefeated,
+            bossDefeated: state.bossDefeated,
+            playerAlive: state.player.isAlive,
+            runFailed: state.outcome == .failure
+           )
         {
             state.extraction.armed = true
             events.emit(tick: tick, phase: 16, type: .extractionArmed)

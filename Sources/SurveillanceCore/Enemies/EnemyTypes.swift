@@ -82,4 +82,17 @@ public struct EncounterRuntime: Equatable, Sendable {
 
 public enum EncounterDirector {
     public static let encounterOrder = ["M-A", "M-B", "M-C"]
+
+    /// encounter-objectives-001 §5 / FR-040A. Camera count, Network Blackout, Exposure, and upgrade are not inputs.
+    public static func extractionArmed(
+        mobAComplete: Bool,
+        mobBComplete: Bool,
+        mobCComplete: Bool,
+        eliteDefeated: Bool,
+        bossDefeated: Bool,
+        playerAlive: Bool,
+        runFailed: Bool
+    ) -> Bool {
+        mobAComplete && mobBComplete && mobCComplete && eliteDefeated && bossDefeated && playerAlive && !runFailed
+    }
 }

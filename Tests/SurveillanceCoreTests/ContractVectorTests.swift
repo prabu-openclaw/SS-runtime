@@ -129,11 +129,21 @@ struct ContractVectorTests {
         var sim = try Simulation.make(seed: 1)
         sim.testing_completeCombatGraph()
         _ = sim.step(command: .neutral(tick: 1))
-        #expect(sim.state.extraction.armed)
-        #expect(sim.state.destructions.isEmpty)
+        let extract = sim.state.arena.extraction.center
+        sim.testing_setPlayerPosition(VecI(x: extract.x, y: extract.y))
+        sim.testing_setExtractionRemaining(1)
+        let result = sim.step(command: .neutral(tick: 2))
+        let outcome = result.outcome
+        let destroyed = sim.state.destructions.count
+        let blackout = sim.state.networkBlackout
         let receipt = RunReceipt(sim.state)
-        #expect(receipt.camerasDestroyed == 0)
-        #expect(!receipt.networkBlackout)
+        let receiptDestroyed = receipt.camerasDestroyed
+        let receiptBlackout = receipt.networkBlackout
+        #expect(outcome == .success)
+        #expect(destroyed == 0)
+        #expect(!blackout)
+        #expect(receiptDestroyed == 0)
+        #expect(!receiptBlackout)
     }
 
     @Test func bossBO001DaemonCycleTimingAndQueryDamage() {

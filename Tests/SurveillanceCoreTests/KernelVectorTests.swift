@@ -65,4 +65,37 @@ struct KernelVectorTests {
         #expect(result.afterLeave == 300)
         #expect(result.afterReenter == 299)
     }
+
+    @Test func cameraT414PredicateOmitsCameraBlackoutExposureAndUpgrade() {
+        let complete = EncounterDirector.extractionArmed(
+            mobAComplete: true, mobBComplete: true, mobCComplete: true,
+            eliteDefeated: true, bossDefeated: true, playerAlive: true, runFailed: false
+        )
+        let missingMobA = EncounterDirector.extractionArmed(
+            mobAComplete: false, mobBComplete: true, mobCComplete: true,
+            eliteDefeated: true, bossDefeated: true, playerAlive: true, runFailed: false
+        )
+        let missingElite = EncounterDirector.extractionArmed(
+            mobAComplete: true, mobBComplete: true, mobCComplete: true,
+            eliteDefeated: false, bossDefeated: true, playerAlive: true, runFailed: false
+        )
+        let missingBoss = EncounterDirector.extractionArmed(
+            mobAComplete: true, mobBComplete: true, mobCComplete: true,
+            eliteDefeated: true, bossDefeated: false, playerAlive: true, runFailed: false
+        )
+        let playerDead = EncounterDirector.extractionArmed(
+            mobAComplete: true, mobBComplete: true, mobCComplete: true,
+            eliteDefeated: true, bossDefeated: true, playerAlive: false, runFailed: false
+        )
+        let runFailed = EncounterDirector.extractionArmed(
+            mobAComplete: true, mobBComplete: true, mobCComplete: true,
+            eliteDefeated: true, bossDefeated: true, playerAlive: true, runFailed: true
+        )
+        #expect(complete)
+        #expect(!missingMobA)
+        #expect(!missingElite)
+        #expect(!missingBoss)
+        #expect(!playerDead)
+        #expect(!runFailed)
+    }
 }
