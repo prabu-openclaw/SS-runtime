@@ -1,0 +1,15 @@
+{
+  "schemaVersion":"presentation-assets-001",
+  "contract":"hud-tutorial-001",
+  "requiredAssetIds":[
+    "hud_integrity_frame","hud_exposure_bar","hud_detection_hidden","hud_detection_observed","hud_detection_tracked","hud_detection_hunted","hud_detection_lockdown",
+    "hud_camera_notch_full","hud_camera_notch_empty","hud_camera_counter","hud_boss_bar","hud_extraction_ring","hud_upgrade_signal_jammer","hud_upgrade_ricochet_pulse","hud_upgrade_ghost_step",
+    "control_stick_base","control_stick_knob","control_dodge","control_pause",
+    "telegraph_daemon_query","telegraph_daemon_dash","telegraph_safety_rationale","telegraph_narrow_tailoring","telegraph_temporary_order","telegraph_independent_review",
+    "objective_phoenix_steps_locked","objective_phoenix_steps_armed","objective_network_blackout"
+  ],
+  "audioEventIds":[
+    "weapon_civic_pulse","impact_enemy","player_damage","player_dodge","camera_hit_01","camera_hit_02","camera_critical","camera_destroy","camera_network_tamper","exposure_state_up","lockdown_enter",
+    "upgrade_selected_signalJammer","upgrade_selected_ricochetPulse","upgrade_selected_ghostStep","daemon_query","daemon_dash","boss_defeated","extraction_armed","extraction_tick","extraction_reset","run_success","player_death","network_blackout"
+  ]
+}

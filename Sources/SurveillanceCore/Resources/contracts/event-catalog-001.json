@@ -1,0 +1,33 @@
+{
+  "schemaVersion":"event-catalog-001",
+  "events":[
+    {"ordinal":10,"type":"runStarted","payload":{"required":["seed"],"fields":{"seed":"uint64"}}},
+    {"ordinal":20,"type":"upgradeSelected","payload":{"required":["upgradeId","selectionIndex"],"fields":{"upgradeId":"upgradeId","selectionIndex":"int"}}},
+    {"ordinal":30,"type":"dodgeStarted","payload":{"required":["cooldownReadyTick"],"fields":{"cooldownReadyTick":"uint64"}}},
+    {"ordinal":40,"type":"weaponFired","payload":{"required":["weaponId","targetEntityId"],"fields":{"weaponId":"weaponId","targetEntityId":"entityId"}}},
+    {"ordinal":50,"type":"projectileHit","payload":{"required":["projectileId","targetEntityId","appliedDamage"],"fields":{"projectileId":"entityId","targetEntityId":"entityId","appliedDamage":"int"}}},
+    {"ordinal":60,"type":"cameraIntegrityChanged","payload":{"required":["cameraId","before","after"],"fields":{"cameraId":"entityId","before":"int","after":"int"}}},
+    {"ordinal":70,"type":"cameraDestroyed","payload":{"required":["cameraId","socketId","projectileId","wasDetecting"],"fields":{"cameraId":"entityId","socketId":"socketId","projectileId":"entityId","wasDetecting":"bool"}}},
+    {"ordinal":80,"type":"entityDamaged","payload":{"required":["entityId","amount","remainingIntegrity"],"fields":{"entityId":"entityId","amount":"int","remainingIntegrity":"int"}}},
+    {"ordinal":90,"type":"entityDied","payload":{"required":["entityId","archetypeId"],"fields":{"entityId":"entityId","archetypeId":"archetypeId"}}},
+    {"ordinal":100,"type":"playerDamaged","payload":{"required":["amount","remainingIntegrity","sourceEntityId"],"fields":{"amount":"int","remainingIntegrity":"int","sourceEntityId":"entityIdOrNull"}}},
+    {"ordinal":110,"type":"exposureChanged","payload":{"required":["before","after","reason"],"fields":{"before":"int","after":"int","reason":"exposureReason"}}},
+    {"ordinal":120,"type":"detectionStateChanged","payload":{"required":["before","after"],"fields":{"before":"detectionState","after":"detectionState"}}},
+    {"ordinal":130,"type":"lockdownEntered","payload":{"required":["reason"],"fields":{"reason":"lockdownReason"}}},
+    {"ordinal":140,"type":"waveStarted","payload":{"required":["encounterId","waveId"],"fields":{"encounterId":"encounterId","waveId":"waveId"}}},
+    {"ordinal":150,"type":"mobEncounterCompleted","payload":{"required":["encounterId"],"fields":{"encounterId":"encounterId"}}},
+    {"ordinal":160,"type":"eliteActivated","payload":{"required":["eliteId"],"fields":{"eliteId":"archetypeId"}}},
+    {"ordinal":170,"type":"eliteDefeated","payload":{"required":["eliteId"],"fields":{"eliteId":"archetypeId"}}},
+    {"ordinal":180,"type":"bossActivated","payload":{"required":["bossId"],"fields":{"bossId":"archetypeId"}}},
+    {"ordinal":190,"type":"bossPhaseChanged","payload":{"required":["before","after","remainingIntegrity"],"fields":{"before":"bossPhaseOrNull","after":"bossPhase","remainingIntegrity":"int"}}},
+    {"ordinal":200,"type":"bossAttackStarted","payload":{"required":["attackId","phaseId"],"fields":{"attackId":"bossAttackId","phaseId":"bossPhase"}}},
+    {"ordinal":210,"type":"bossDefeated","payload":{"required":["bossId"],"fields":{"bossId":"archetypeId"}}},
+    {"ordinal":220,"type":"allCamerasDestroyed","payload":{"required":["destroyedCount","totalCount"],"fields":{"destroyedCount":"int","totalCount":"int"}}},
+    {"ordinal":230,"type":"extractionArmed","payload":{"required":[],"fields":{}}},
+    {"ordinal":240,"type":"extractionCountdownChanged","payload":{"required":["remainingTicks"],"fields":{"remainingTicks":"int"}}},
+    {"ordinal":250,"type":"extractionReset","payload":{"required":["previousRemainingTicks"],"fields":{"previousRemainingTicks":"int"}}},
+    {"ordinal":260,"type":"runSucceeded","payload":{"required":["finalDigest"],"fields":{"finalDigest":"sha256"}}},
+    {"ordinal":270,"type":"runFailed","payload":{"required":["reason"],"fields":{"reason":"failureReason"}}},
+    {"ordinal":280,"type":"diagnosticFailure","payload":{"required":["code"],"fields":{"code":"diagnosticCode"}}}
+  ]
+}

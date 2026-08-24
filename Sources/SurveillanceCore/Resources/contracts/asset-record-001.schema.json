@@ -1,0 +1,28 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://github.com/scrimshawlife-ctrl/SS-specs/contracts/asset-record-001.schema.json",
+  "title":"Surveillance Survivor Asset Record",
+  "type":"object",
+  "additionalProperties":false,
+  "required":["schemaVersion","assetId","kind","productionStatus","runtimeRequired","provenance","license","source","runtimePath","sha256","dimensions","colorSpace","alpha","ownerContract"],
+  "properties":{
+    "schemaVersion":{"const":"asset-record-001"},
+    "assetId":{"type":"string","pattern":"^[a-z0-9][a-zA-Z0-9_]*$"},
+    "kind":{"enum":["sprite","atlas","texture","font","audio","music","vfxDefinition","ui"]},
+    "productionStatus":{"enum":["planned","inProduction","review","accepted","rejected"]},
+    "runtimeRequired":{"type":"boolean"},
+    "provenance":{"enum":["projectOriginal","adaptedLegacy","licensedThirdParty"]},
+    "license":{"type":["string","null"]},
+    "source":{"type":["string","null"]},
+    "runtimePath":{"type":["string","null"]},
+    "sha256":{"type":["string","null"],"pattern":"^[0-9a-f]{64}$"},
+    "dimensions":{"type":["object","null"],"required":["width","height"],"properties":{"width":{"type":"integer","minimum":1},"height":{"type":"integer","minimum":1}}},
+    "colorSpace":{"type":["string","null"]},
+    "alpha":{"type":["string","null"]},
+    "ownerContract":{"type":"string","minLength":1},
+    "notes":{"type":"string"}
+  },
+  "allOf":[
+    {"if":{"properties":{"productionStatus":{"const":"accepted"}}},"then":{"properties":{"source":{"type":"string"},"runtimePath":{"type":"string"},"sha256":{"type":"string"},"license":{"type":"string"}}}}
+  ]
+}
