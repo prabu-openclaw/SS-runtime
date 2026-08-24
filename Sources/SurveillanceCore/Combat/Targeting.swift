@@ -44,6 +44,7 @@ public enum Targeting {
     public static let cameraDamage = 1
     public static let ricochetRange = 160
 
+    /// D-031 / `camera-destruction-001` §6 / T409: class, then squared distance to anchor, then stable ID.
     public static func select(
         player: PlayerBody,
         enemies: [EnemyBody],
