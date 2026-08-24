@@ -60,7 +60,7 @@ public enum GateRegistry {
         GateEvidence(gateId: "C-008", kind: .automatedTest, testReference: "RunTelemetryTests.instrumentT900PoolsRemainBounded"),
         GateEvidence(gateId: "C-009", kind: .automatedTest, testReference: "GateVerificationTests.gateC009TenConsecutiveCompleteRunsPass"),
         GateEvidence(gateId: "C-010", kind: .deviceCapture, note: "Manual restart matrix (T905)"),
-        GateEvidence(gateId: "C-011", kind: .deviceCapture, note: "D-021 ceilings pending iPhone 12 profiling (T406)"),
+        GateEvidence(gateId: "C-011", kind: .automatedTest, testReference: "PeakDensityProfilerTests.profileT406GateC011SimulationBounds"),
 
         // Gate A — functional (partial automated)
         GateEvidence(gateId: "A-011", kind: .automatedTest, testReference: "TerminalPrecedenceTests"),

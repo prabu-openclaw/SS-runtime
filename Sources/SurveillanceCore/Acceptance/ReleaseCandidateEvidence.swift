@@ -12,6 +12,8 @@ public struct ReleaseCandidateEvidence: Equatable, Sendable {
     public var openSeverityTwoDefects: Int
     public var d013Settled: Bool
     public var d021Settled: Bool
+    public var peakDensityDigest: String
+    public var d021Ceilings: D021Ceilings
 
     public init(
         schemaVersion: String = "release-candidate-evidence-001",
@@ -25,7 +27,9 @@ public struct ReleaseCandidateEvidence: Equatable, Sendable {
         openSeverityOneDefects: Int,
         openSeverityTwoDefects: Int,
         d013Settled: Bool,
-        d021Settled: Bool
+        d021Settled: Bool,
+        peakDensityDigest: String,
+        d021Ceilings: D021Ceilings
     ) {
         self.schemaVersion = schemaVersion
         self.specificationCommit = specificationCommit
@@ -39,6 +43,8 @@ public struct ReleaseCandidateEvidence: Equatable, Sendable {
         self.openSeverityTwoDefects = openSeverityTwoDefects
         self.d013Settled = d013Settled
         self.d021Settled = d021Settled
+        self.peakDensityDigest = peakDensityDigest
+        self.d021Ceilings = d021Ceilings
     }
 
     public func canonical() -> CanonicalJSON {
@@ -67,7 +73,9 @@ public struct ReleaseCandidateEvidence: Equatable, Sendable {
             "openSeverityOneDefects": .integer(Int64(openSeverityOneDefects)),
             "openSeverityTwoDefects": .integer(Int64(openSeverityTwoDefects)),
             "d013Settled": .bool(d013Settled),
-            "d021Settled": .bool(d021Settled)
+            "d021Settled": .bool(d021Settled),
+            "peakDensityDigest": .string(peakDensityDigest),
+            "d021Ceilings": d021Ceilings.canonical()
         ])
     }
 }
@@ -79,26 +87,31 @@ public enum ReleaseCandidateEvidenceCollector {
         public var openSeverityOneDefects: Int
         public var openSeverityTwoDefects: Int
         public var d013Settled: Bool
-        public var d021Settled: Bool
+        public var d021DeviceProfiling: D021Ceilings?
 
         public init(
             playtestEvidence: [PlaytestEvidence] = [],
             deviceEvidence: [DeviceRunEvidence] = [],
-            openSeverityOneDefects: Int = 0,
-            openSeverityTwoDefects: Int = 0,
+            openSeverityOneDefects: Int? = nil,
+            openSeverityTwoDefects: Int? = nil,
             d013Settled: Bool = false,
-            d021Settled: Bool = false
+            d021DeviceProfiling: D021Ceilings? = nil
         ) {
             self.playtestEvidence = playtestEvidence
             self.deviceEvidence = deviceEvidence
-            self.openSeverityOneDefects = openSeverityOneDefects
-            self.openSeverityTwoDefects = openSeverityTwoDefects
+            self.openSeverityOneDefects = openSeverityOneDefects ?? DefectRegistry.openSeverityOneDefects
+            self.openSeverityTwoDefects = openSeverityTwoDefects ?? DefectRegistry.openSeverityTwoDefects
             self.d013Settled = d013Settled
-            self.d021Settled = d021Settled
+            self.d021DeviceProfiling = d021DeviceProfiling
         }
     }
 
     public static func collect(options: Options = Options()) throws -> ReleaseCandidateEvidence {
+        let peakReport = try PeakDensityProfiler.profile()
+        var d021 = D021Ceilings.fromSimulation(peakReport)
+        if let device = options.d021DeviceProfiling {
+            d021 = device
+        }
         var replayMatrixDigests: [String: String] = [:]
         for entry in try ReplayMatrix.load() {
             replayMatrixDigests[entry.id] = try ReplayMatrix.tripleRunDigest(entry)
@@ -129,7 +142,7 @@ public enum ReleaseCandidateEvidenceCollector {
             ExpansionGateInputs(
                 gateResults: gateResults,
                 d013Settled: options.d013Settled,
-                d021Settled: options.d021Settled,
+                d021Settled: d021.isSettled,
                 openSeverityOneDefects: options.openSeverityOneDefects,
                 openSeverityTwoDefects: options.openSeverityTwoDefects
             )
@@ -146,7 +159,9 @@ public enum ReleaseCandidateEvidenceCollector {
             openSeverityOneDefects: options.openSeverityOneDefects,
             openSeverityTwoDefects: options.openSeverityTwoDefects,
             d013Settled: options.d013Settled,
-            d021Settled: options.d021Settled
+            d021Settled: d021.isSettled,
+            peakDensityDigest: peakReport.canonical().sha256Hex(),
+            d021Ceilings: d021
         )
     }
 }
