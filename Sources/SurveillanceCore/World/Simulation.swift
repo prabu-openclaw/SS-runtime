@@ -518,7 +518,11 @@ public struct Simulation: Equatable, Sendable {
                 continue
             }
             if let cIndex = state.cameras.firstIndex(where: { $0.entityId == hit.target }) {
-                guard state.cameras[cIndex].isDamageable else { continue }
+                guard state.cameras[cIndex].isDamageable else {
+                    retireProjectile(at: hit.index)
+                    consumed.insert(hit.projectile)
+                    continue
+                }
                 let before = state.cameras[cIndex].integrity
                 state.cameras[cIndex].integrity -= 1
                 state.tutorial.noteCameraImpact()
@@ -562,6 +566,10 @@ public struct Simulation: Equatable, Sendable {
         for (source, origin, excluded) in ricochetFrom {
             spawnRicochet(from: source, origin: origin, excluding: excluded, tick: tick)
         }
+        // upgrades.md: continuation resolves after the first hit in the same damage phase.
+        if !ricochetFrom.isEmpty {
+            destroyed.formUnion(resolveDamage(tick: tick))
+        }
         return destroyed
     }
 
@@ -596,7 +604,7 @@ public struct Simulation: Equatable, Sendable {
             id: source.id,
             ownerId: source.ownerId,
             kind: .ricochet,
-            position: origin + velocity,
+            position: next.anchor,
             previous: origin,
             velocity: velocity,
             radius: source.radius,
@@ -1257,6 +1265,26 @@ public struct Simulation: Equatable, Sendable {
         )
         guard state.civicPool.checkout(projectile) else { return }
         state.projectiles.append(projectile)
+    }
+
+    mutating func testing_keepCameras(_ indices: Set<Int>, integrity: Int) {
+        for i in state.cameras.indices {
+            state.cameras[i].integrity = indices.contains(i) ? integrity : 0
+        }
+    }
+
+    mutating func testing_relocateCamera(at index: Int, position: VecI, headingMilli: Int) {
+        guard state.cameras.indices.contains(index) else { return }
+        guard var socket = state.arena.cameraSockets.first(where: { $0.socketId == state.cameras[index].socketId }) else {
+            return
+        }
+        socket.position = position
+        socket.headingMilliDegrees = headingMilli
+        let geometry = state.arena.standardCameraGeometry
+        state.cameras[index].position = position
+        state.cameras[index].headingMilliDegrees = headingMilli
+        state.cameras[index].fieldOrigin = CameraPlacement.fieldOrigin(socket: socket, geometry: geometry)
+        state.cameras[index].targetAnchor = CameraPlacement.targetAnchor(socket: socket, geometry: geometry)
     }
 
     mutating func testing_destroyCameras() {
