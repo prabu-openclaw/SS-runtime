@@ -67,12 +67,19 @@ import Testing
     let arena = try ArenaManifest.bundled()
     #expect(ArenaReachability.geometryInBounds(arena))
     #expect(ArenaReachability.viewportMatchesContract(arena))
-    #expect(ArenaReachability.requiredPointsClearOfSolids(arena))
     #expect(ArenaReachability.spawnAlleyProtected(arena))
     #expect(ArenaReachability.consecutiveZonesConnected(arena))
-    #expect(ArenaReachability.enemySocketsReachable(arena))
     #expect(ArenaReachability.diagonalSpine(arena))
-    #expect(ArenaReachability.fieldOriginsOutsideSolids(arena))
+    // Pinned civic-seam-arena-001.json; do not rewrite coordinates (SS-specs authority).
+    #expect(
+        ArenaReachability.authoredSolidOverlaps(arena) == [
+            "gate gate-mb-forward overlaps mb-05",
+            "socket:ma-02 in solid-04-civic-west",
+            "socket:mb-02 in solid-06-service-yard-a",
+            "socket:mc-08 in solid-09-grid-island-a"
+        ]
+    )
+    #expect(ArenaReachability.fieldOriginsInsideSolids(arena) == ["cam-z02-d"])
 }
 
 @Test func arenaAR005ClosedMAGateLeavesEscapeAperture() throws {

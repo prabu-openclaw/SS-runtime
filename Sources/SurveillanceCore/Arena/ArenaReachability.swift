@@ -189,14 +189,12 @@ public enum ArenaReachability {
     public static func maEscapeOpen(_ manifest: ArenaManifest) -> Bool {
         guard let civic = zone(manifest, id: "Z-03") else { return false }
         let spawn = VecI(x: manifest.playerSpawn.x, y: manifest.playerSpawn.y)
-        let start = civic.center
-        return reachable(
-            spawn,
-            from: start,
+        return flood(
+            from: spawn,
             radius: PlayerBody.radiusUnits,
             manifest: manifest,
             closedGateIDs: ["gate-ma-forward"]
-        )
+        ).intersects(civic.aabb)
     }
 
     public static func spawnAlleyProtected(_ manifest: ArenaManifest) -> Bool {
@@ -252,30 +250,54 @@ public enum ArenaReachability {
     }
 
     public static func requiredPointsClearOfSolids(_ manifest: ArenaManifest) -> Bool {
-        let solids = manifest.permanentSolids.map(\.aabb)
-        func clear(_ point: VecI) -> Bool {
-            !solids.contains { $0.contains(point) }
-        }
-        if !clear(VecI(x: manifest.playerSpawn.x, y: manifest.playerSpawn.y)) { return false }
-        if !clear(manifest.extraction.center) { return false }
-        if !clear(VecI(x: manifest.eliteSpawn.x, y: manifest.eliteSpawn.y)) { return false }
-        if !clear(VecI(x: manifest.bossSpawn.x, y: manifest.bossSpawn.y)) { return false }
-        for trigger in manifest.encounterTriggers {
-            if !clear(trigger.center) { return false }
-            if solids.contains(where: { overlaps($0, trigger.aabb) && $0.contains(trigger.center) }) { return false }
-        }
-        for socket in manifest.enemySpawnSockets.values.flatMap({ $0 }) {
-            if !clear(VecI(x: socket.x, y: socket.y)) { return false }
-        }
-        for gate in manifest.gates {
-            let spawn = VecI(x: manifest.playerSpawn.x, y: manifest.playerSpawn.y)
-            if gate.aabb.contains(spawn) { return false }
-            for socket in manifest.enemySpawnSockets.values.flatMap({ $0 }) {
-                if gate.aabb.contains(VecI(x: socket.x, y: socket.y)) { return false }
+        authoredSolidOverlaps(manifest).isEmpty
+    }
+
+    public static func authoredSolidOverlaps(_ manifest: ArenaManifest) -> [String] {
+        let solids = manifest.permanentSolids
+        var reasons: [String] = []
+        func hit(_ point: VecI, _ label: String) {
+            for solid in solids where solid.aabb.contains(point) {
+                reasons.append("\(label) in \(solid.id)")
             }
         }
-        if solids.contains(where: { overlaps($0, manifest.extraction.aabb) }) { return false }
-        return true
+        hit(VecI(x: manifest.playerSpawn.x, y: manifest.playerSpawn.y), "spawn")
+        hit(manifest.extraction.center, "extractCenter")
+        hit(VecI(x: manifest.eliteSpawn.x, y: manifest.eliteSpawn.y), "elite")
+        hit(VecI(x: manifest.bossSpawn.x, y: manifest.bossSpawn.y), "boss")
+        for trigger in manifest.encounterTriggers {
+            hit(trigger.center, "trigger:\(trigger.id)")
+        }
+        for socket in manifest.enemySpawnSockets.values.flatMap({ $0 }) {
+            hit(VecI(x: socket.x, y: socket.y), "socket:\(socket.id ?? "?")")
+        }
+        for gate in manifest.gates {
+            if gate.aabb.contains(VecI(x: manifest.playerSpawn.x, y: manifest.playerSpawn.y)) {
+                reasons.append("gate \(gate.id) overlaps spawn")
+            }
+            for socket in manifest.enemySpawnSockets.values.flatMap({ $0 }) {
+                if gate.aabb.contains(VecI(x: socket.x, y: socket.y)) {
+                    reasons.append("gate \(gate.id) overlaps \(socket.id ?? "?")")
+                }
+            }
+        }
+        for solid in solids where overlaps(solid.aabb, manifest.extraction.aabb) {
+            reasons.append("solid \(solid.id) overlaps extraction")
+        }
+        return reasons.sorted()
+    }
+
+    public static func fieldOriginsInsideSolids(_ manifest: ArenaManifest) -> [String] {
+        let solids = boxes(manifest)
+        return manifest.cameraSockets.compactMap { socket in
+            let origin = CameraPlacement.fieldOrigin(socket: socket, geometry: manifest.standardCameraGeometry)
+            let point = VecI(x: origin.x.unitsTruncated, y: origin.y.unitsTruncated)
+            return solids.contains(where: { $0.contains(point) }) ? socket.socketId : nil
+        }.sorted()
+    }
+
+    public static func fieldOriginsOutsideSolids(_ manifest: ArenaManifest) -> Bool {
+        fieldOriginsInsideSolids(manifest).isEmpty
     }
 
     public static func viewportMatchesContract(_ manifest: ArenaManifest) -> Bool {
@@ -305,17 +327,7 @@ public enum ArenaReachability {
             isWalkable(socket.position, radius: radius, bounds: bounds, solids: solids)
                 ? nil
                 : socket.socketId
-        }
-    }
-
-    public static func fieldOriginsOutsideSolids(_ manifest: ArenaManifest) -> Bool {
-        let solids = boxes(manifest)
-        for socket in manifest.cameraSockets where socket.enabled {
-            let origin = CameraPlacement.fieldOrigin(socket: socket, geometry: manifest.standardCameraGeometry)
-            let point = VecI(x: origin.x.unitsTruncated, y: origin.y.unitsTruncated)
-            if solids.contains(where: { $0.contains(point) }) { return false }
-        }
-        return true
+        }.sorted()
     }
 
     private static func overlaps(_ a: AABB, _ b: AABB) -> Bool {

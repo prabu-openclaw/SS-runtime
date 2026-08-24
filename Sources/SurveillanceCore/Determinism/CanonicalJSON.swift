@@ -50,13 +50,7 @@ public enum CanonicalJSON: Equatable, Sendable {
         case let value as UInt64:
             return .unsigned(value)
         case let value as NSNumber:
-            if CFGetTypeID(value) == CFBooleanGetTypeID() {
-                return .bool(value.boolValue)
-            }
-            if value.doubleValue.rounded() == value.doubleValue {
-                return .integer(value.int64Value)
-            }
-            return nil
+            return .integer(value.int64Value)
         default:
             return nil
         }
