@@ -119,11 +119,11 @@ struct CameraDestructionOrderTests {
         sim.testing_keepOnlyCamera(at: 0, integrity: 0)
         let camera = sim.state.cameras[0]
         sim.testing_injectPulseHitting(camera: camera)
-        _ = sim.step(command: .neutral(tick: 1))
+        let hit = sim.step(command: .neutral(tick: 1))
         let integrity = sim.state.cameras[0].integrity
         let destroyed = sim.state.destructions.count
         let exposure = sim.state.exposure.exposure
-        let events = sim.step(command: .neutral(tick: 2)).events.filter { $0.type == .cameraDestroyed }.count
+        let events = hit.events.filter { $0.type == .cameraDestroyed }.count
         #expect(integrity == 0)
         #expect(destroyed == 0)
         #expect(exposure == 0)
