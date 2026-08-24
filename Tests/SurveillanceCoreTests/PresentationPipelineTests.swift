@@ -29,6 +29,8 @@ private func repoRoot() -> URL {
     }
 }
 
+@Suite(.serialized)
+struct AssetIntakeChecks {
 @Test func assetIntakeAcceptsPulledEvidenceAndExcludesArtSourcesFromRuntime() throws {
     let catalog = try AssetCatalog.bundled()
     let issues = try AssetIntake.validate(catalog: catalog, evidenceRoot: repoRoot())
@@ -65,6 +67,7 @@ private func repoRoot() -> URL {
     )
     let issues = try AssetIntake.validate(catalog: catalog, evidenceRoot: repoRoot())
     #expect(issues.contains { if case .duplicateHash = $0 { true } else { false } })
+}
 }
 
 @Test func audioAH001NineEffectsStealToEight() throws {

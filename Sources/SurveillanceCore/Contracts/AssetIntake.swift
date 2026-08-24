@@ -15,15 +15,14 @@ public enum AssetIntakeIssue: Equatable, Sendable {
 
 public enum PNGHeader {
     public static func parse(_ data: Data) -> (width: Int, height: Int, colorType: UInt8)? {
-        let bytes = [UInt8](data)
-        guard bytes.count >= 24 else { return nil }
+        guard data.count >= 26 else { return nil }
         let signature: [UInt8] = [137, 80, 78, 71, 13, 10, 26, 10]
-        guard bytes.prefix(8).elementsEqual(signature) else { return nil }
-        guard bytes[12] == 73, bytes[13] == 72, bytes[14] == 68, bytes[15] == 82 else { return nil }
-        let width = (Int(bytes[16]) << 24) | (Int(bytes[17]) << 16) | (Int(bytes[18]) << 8) | Int(bytes[19])
-        let height = (Int(bytes[20]) << 24) | (Int(bytes[21]) << 16) | (Int(bytes[22]) << 8) | Int(bytes[23])
-        guard width >= 1, height >= 1, bytes.count > 24 else { return nil }
-        return (width, height, bytes[25])
+        guard data.prefix(8).elementsEqual(signature) else { return nil }
+        guard data[12] == 73, data[13] == 72, data[14] == 68, data[15] == 82 else { return nil }
+        let width = (Int(data[16]) << 24) | (Int(data[17]) << 16) | (Int(data[18]) << 8) | Int(data[19])
+        let height = (Int(data[20]) << 24) | (Int(data[21]) << 16) | (Int(data[22]) << 8) | Int(data[23])
+        guard width >= 1, height >= 1 else { return nil }
+        return (width, height, data[25])
     }
 }
 
@@ -56,39 +55,39 @@ public enum AssetIntake {
                 issues.append(.missingEvidenceFile(record.assetId))
                 continue
             }
-            let data = try Data(contentsOf: fileURL)
-            if data.isEmpty {
+            let attrs = try FileManager.default.attributesOfItem(atPath: fileURL.path)
+            let byteCount = (attrs[.size] as? NSNumber)?.intValue ?? 0
+            if byteCount <= 0 {
                 issues.append(.emptyFile(record.assetId))
                 continue
             }
-            let digest = SHA256.hex(Array(data))
-            if let expected = record.sha256, expected != digest {
+            if let recorded = record.sha256 {
+                if let previous = hashes[recorded], previous != record.assetId {
+                    issues.append(.duplicateHash(recorded))
+                } else {
+                    hashes[recorded] = record.assetId
+                }
+            }
+            guard source.hasSuffix(".png") else { continue }
+            let data = try Data(contentsOf: fileURL)
+            if let recorded = record.sha256, SHA256.hex(Array(data)) != recorded {
                 issues.append(.hashMismatch(record.assetId))
             }
-            if record.sha256 != nil {
-                if let previous = hashes[digest], previous != record.assetId {
-                    issues.append(.duplicateHash(digest))
-                } else {
-                    hashes[digest] = record.assetId
-                }
+            guard let header = PNGHeader.parse(data) else {
+                issues.append(.emptyFile(record.assetId))
+                continue
             }
-            if source.hasSuffix(".png") {
-                guard let header = PNGHeader.parse(data) else {
-                    issues.append(.emptyFile(record.assetId))
-                    continue
-                }
-                if let dimensions = record.dimensions,
-                   dimensions.width != header.width || dimensions.height != header.height
-                {
-                    issues.append(.dimensionMismatch(record.assetId))
-                }
-                if let colorSpace = record.colorSpace, colorSpace != "sRGB" {
-                    issues.append(.colorSpace(record.assetId))
-                }
-                let hasAlpha = header.colorType == 4 || header.colorType == 6
-                if hasAlpha && record.alpha == "opaque" {
-                    issues.append(.colorSpace(record.assetId))
-                }
+            if let dimensions = record.dimensions,
+               dimensions.width != header.width || dimensions.height != header.height
+            {
+                issues.append(.dimensionMismatch(record.assetId))
+            }
+            if let colorSpace = record.colorSpace, colorSpace != "sRGB" {
+                issues.append(.colorSpace(record.assetId))
+            }
+            let hasAlpha = header.colorType == 4 || header.colorType == 6
+            if hasAlpha && record.alpha == "opaque" {
+                issues.append(.colorSpace(record.assetId))
             }
         }
 
