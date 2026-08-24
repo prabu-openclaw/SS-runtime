@@ -25,7 +25,14 @@ struct ArenaReachabilityTests {
 
     @Test func arenaAR005ClosedMAGateLeavesEscapeAperture() throws {
         let arena = try ArenaManifest.bundled()
-        #expect(ArenaReachability.maEscapeOpen(arena))
+        let ma = ArenaReachability.maEscapeOpen(arena)
+        let maBack = ArenaReachability.escapeApertureOpen(arena, encounter: "M-A")
+        let mbBack = ArenaReachability.escapeApertureOpen(arena, encounter: "M-B")
+        let mcBack = ArenaReachability.escapeApertureOpen(arena, encounter: "M-C")
+        #expect(ma)
+        #expect(maBack)
+        #expect(mbBack)
+        #expect(mcBack)
     }
 
     @Test func arenaAR007BossCorridorRemainsOneHundredNinetyTwoWide() throws {
