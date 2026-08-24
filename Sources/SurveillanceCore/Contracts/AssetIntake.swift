@@ -42,9 +42,7 @@ public enum AssetIntake {
                     issues.append(.acceptedWithoutFile(record.assetId))
                     continue
                 }
-                if runtimePath.hasSuffix(".png"),
-                   runtimePath.wholeMatch(of: /^[a-z0-9]+(?:_[a-z0-9]+)+@[1-9][0-9]*x\.png$/) == nil
-                {
+                if runtimePath.hasSuffix(".png"), !isValidDeliveryPNGName(runtimePath) {
                     issues.append(.invalidDeliveryName(record.assetId))
                 }
             }
@@ -70,7 +68,7 @@ public enum AssetIntake {
             }
             guard source.hasSuffix(".png") else { continue }
             let data = try Data(contentsOf: fileURL)
-            if let recorded = record.sha256, SHA256.hex(Array(data)) != recorded {
+            if let recorded = record.sha256, SHA256.hex(data) != recorded {
                 issues.append(.hashMismatch(record.assetId))
             }
             guard let header = PNGHeader.parse(data) else {
@@ -113,5 +111,26 @@ public enum AssetIntake {
         }
 
         return issues
+    }
+
+    /// `name_parts@<scale>x.png` with at least two lowercase ident parts.
+    public static func isValidDeliveryPNGName(_ name: String) -> Bool {
+        guard name.hasSuffix(".png") else { return false }
+        let stem = name.dropLast(4)
+        guard let at = stem.lastIndex(of: "@") else { return false }
+        let base = stem[stem.startIndex..<at]
+        let scale = stem[stem.index(after: at)...]
+        guard scale.count >= 2, scale.last == "x" else { return false }
+        let digits = scale.dropLast()
+        guard let first = digits.first, first >= "1", first <= "9",
+              digits.allSatisfy({ $0 >= "0" && $0 <= "9" })
+        else { return false }
+        let parts = base.split(separator: "_", omittingEmptySubsequences: false)
+        guard parts.count >= 2 else { return false }
+        return parts.allSatisfy { part in
+            !part.isEmpty && part.allSatisfy { ch in
+                (ch >= "a" && ch <= "z") || (ch >= "0" && ch <= "9")
+            }
+        }
     }
 }
