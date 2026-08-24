@@ -5,6 +5,8 @@ public enum ContractVersions {
     public static let arena = "civic-seam-arena-001"
     public static let replaySchema = "runtime-kernel-001"
     public static let cameraPlacement = "camera-placement-001"
+    public static let animation = "animation-civic-seam-001"
+    public static let clipMetadata = "clip-metadata-001"
 }
 
 public struct ReplayIdentity: Equatable, Sendable {

@@ -29,6 +29,7 @@
     "kernelVectors": "kernel-vectors-001",
     "smokeReplay": "runtime-kernel-001",
     "animation": "animation-civic-seam-001",
+    "clipMetadata": "clip-metadata-001",
     "visualAssets": "visual-civic-seam-001"
   }
 }
