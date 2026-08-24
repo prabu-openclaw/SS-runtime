@@ -14,7 +14,7 @@ struct AssetCatalogTests {
             with: SpecBundle.contract("presentation-assets-001")
         ) as! [String: Any]
         let required = (presentation["requiredAssetIds"] as! [String]) + (presentation["audioEventIds"] as! [String])
-        #expect(required.count == 51)
+        #expect(required.count == 52)
         for id in required {
             let entry = try #require(catalog.entries.first { $0.record.assetId == id })
             #expect(entry.admissionDecision == .plannedOriginal)

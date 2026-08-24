@@ -29,6 +29,7 @@ struct ClipMetadataTests {
         #expect(destroyDurationMs <= 350)
         #expect(fieldOff.authoritativeEventMarker == EventType.cameraDestroyed.rawValue)
         #expect(fieldOff.blendOrTransition == "immediateOnEvent")
+        #expect(fieldOff.audioCue == "camera_field_off")
         #expect(idle.loop)
         #expect(idle.authoritativeEventMarker == "none")
         #expect(idle.eventType == nil)

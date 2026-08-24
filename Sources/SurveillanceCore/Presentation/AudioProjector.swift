@@ -297,6 +297,9 @@ public struct AudioProjector: Equatable, Sendable {
         }
     }
 
+    /// T610 / `camera-destruction.md` §13: each destroy emits `camera_destroy`
+    /// then `camera_field_off` on the same tick so field-off audio cannot wait
+    /// on the destruction clip. One `camera_network_tamper` covers the batch.
     private func appendCameraDestructions(_ destroyed: [AuthoritativeEvent], into candidates: inout [ProjectedCue]) {
         for event in destroyed {
             candidates.append(
@@ -304,6 +307,15 @@ public struct AudioProjector: Equatable, Sendable {
                     "camera_destroy",
                     haptic: .rigid,
                     caption: "Camera destroyed",
+                    priority: 4,
+                    entity: event.primaryEntityId
+                )
+            )
+            candidates.append(
+                cue(
+                    "camera_field_off",
+                    haptic: .none,
+                    caption: "Camera field off",
                     priority: 4,
                     entity: event.primaryEntityId
                 )

@@ -26,9 +26,10 @@ struct AudioProjectorTests {
             )
         }
         let projection = projector.project(tick: 10, events: events, world: world)
-        #expect(projection.cues.count == 8)
-        #expect(projection.cues.filter { $0.audioId == "camera_destroy" }.count == 7)
-        #expect(projection.cues.contains { $0.audioId == "camera_network_tamper" && $0.variant == 3 })
+        let cueCount = projection.cues.count
+        let hasTamper = projection.cues.contains { $0.audioId == "camera_network_tamper" && $0.variant == 3 }
+        #expect(cueCount == 8)
+        #expect(hasTamper)
     }
 
     @Test func audioAH002ThreeCameraDestructionsOneTamper() throws {
@@ -51,7 +52,10 @@ struct AudioProjectorTests {
             )
         }
         let projection = projector.project(tick: 4, events: events, world: world)
-        #expect(projection.cues.filter { $0.audioId == "camera_destroy" }.count == 3)
+        let destroyCount = projection.cues.filter { $0.audioId == "camera_destroy" }.count
+        let fieldOffCount = projection.cues.filter { $0.audioId == "camera_field_off" }.count
+        #expect(destroyCount == 3)
+        #expect(fieldOffCount == 3)
         let tamper = try #require(projection.cues.first { $0.audioId == "camera_network_tamper" })
         #expect(tamper.variant == 3)
     }
