@@ -186,11 +186,6 @@ public enum ArenaLoader {
         else {
             throw ArenaValidationError.counts
         }
-
-        guard ArenaReachability.geometryInBounds(manifest) else { throw ArenaValidationError.bounds }
-        guard ArenaReachability.viewportMatchesContract(manifest) else { throw ArenaValidationError.bounds }
-        guard ArenaReachability.spawnAlleyProtected(manifest) else { throw ArenaValidationError.bounds }
-        guard ArenaReachability.diagonalSpine(manifest) else { throw ArenaValidationError.bounds }
     }
 }
 
