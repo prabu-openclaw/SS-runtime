@@ -18,6 +18,9 @@ public struct PresentationSnapshot: Equatable, Sendable {
         public var fieldAngleMilli: Int
         public var integrity: Int
         public var detecting: Bool
+        public var presentationState: CameraPresentationState
+        public var fieldVisible: Bool
+        public var clipId: String
     }
 
     public var tick: UInt64
@@ -63,7 +66,8 @@ public struct PresentationSnapshot: Equatable, Sendable {
         detection = state.exposure.detectionState
         solids = state.liveSolids.map(\.box)
         cameras = state.cameras.map {
-            CameraSprite(
+            let presentationState = CameraPresentation.persistentState(integrity: $0.integrity)
+            return CameraSprite(
                 id: $0.entityId,
                 x: $0.position.x,
                 y: $0.position.y,
@@ -71,7 +75,10 @@ public struct PresentationSnapshot: Equatable, Sendable {
                 range: $0.rangeUnits,
                 fieldAngleMilli: $0.fieldAngleMilliDegrees,
                 integrity: $0.integrity,
-                detecting: $0.wasDetecting
+                detecting: $0.wasDetecting,
+                presentationState: presentationState,
+                fieldVisible: $0.integrity > 0,
+                clipId: CameraPresentation.clipId(for: presentationState)
             )
         }
         enemies = state.enemies.filter(\.alive).map {
@@ -132,7 +139,10 @@ public struct PresentationSnapshot: Equatable, Sendable {
                 range: emitter.rangeUnits,
                 fieldAngleMilli: emitter.fieldAngleMilliDegrees,
                 integrity: 1,
-                detecting: true
+                detecting: true,
+                presentationState: .critical,
+                fieldVisible: true,
+                clipId: CameraPresentation.clipId(for: .critical)
             )
         } else {
             captainField = nil
