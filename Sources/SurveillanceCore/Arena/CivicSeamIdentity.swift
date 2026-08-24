@@ -90,6 +90,52 @@ public enum CivicSeamIdentity {
         return entry?.admissionDecision == .rejected && bridge.runtimePath == nil
     }
 
+    /// T807: catalog-wide prohibited landmark, non-SF, seal/logo, and source-bundle audit.
+    public static func catalogContentAudit(_ catalog: AssetCatalog) throws -> [String] {
+        var violations: [String] = []
+        if !catalogRejectsLiteralLandmarks(catalog) {
+            violations.append("literal-bridge-not-rejected")
+        }
+        let reachable = try RuntimeBundleFilter.reachableAssetIds()
+        let bundleIssues = RuntimeBundleFilter.validate(catalog: catalog, reachable: reachable)
+        for issue in bundleIssues {
+            violations.append(contentAuditToken(issue))
+        }
+        for entry in catalog.entries {
+            let id = entry.record.assetId
+            let lowered = id.lowercased()
+            if entry.record.runtimePath != nil {
+                if lowered.contains("_atlanta_") {
+                    violations.append("non-sf-runtime-\(id)")
+                }
+                if lowered.contains("landmark_bridge") || lowered.contains("_seal_") || lowered.contains("_logo_") {
+                    violations.append("prohibited-runtime-\(id)")
+                }
+            }
+            if let notes = entry.record.notes?.lowercased(),
+               notes.contains("copied artwork"),
+               entry.record.runtimePath != nil
+            {
+                violations.append("copied-artwork-runtime-\(id)")
+            }
+        }
+        return violations.sorted()
+    }
+
+    public static func catalogPassesContentAudit(_ catalog: AssetCatalog) throws -> Bool {
+        try catalogContentAudit(catalog).isEmpty
+    }
+
+    private static func contentAuditToken(_ issue: RuntimeBundleIssue) -> String {
+        switch issue {
+        case .legacyEvidenceInBundle(let id): "legacy-bundle-\(id)"
+        case .sourceEvidenceInBundle(let id): "source-bundle-\(id)"
+        case .unreachableRuntimeRequired(let id): "unreachable-bundle-\(id)"
+        case .nonSanFranciscoInBundle(let id): "non-sf-bundle-\(id)"
+        case .duplicateBundleAsset(let id): "duplicate-bundle-\(id)"
+        }
+    }
+
     private static func zone(_ manifest: ArenaManifest, _ id: String) -> NamedRect? {
         manifest.zones.first { $0.id == id }
     }
