@@ -1253,6 +1253,118 @@ public struct Simulation: Equatable, Sendable {
         state.projectiles.append(projectile)
     }
 
+    mutating func testing_installBoss(integrity: Int = 800) {
+        guard !state.enemies.contains(where: { $0.archetype == .algorithmicModerate }) else { return }
+        let spawn = state.arena.bossSpawn
+        let id = state.allocator.next()
+        state.enemies.append(
+            EnemyBody(
+                id: id,
+                archetype: .algorithmicModerate,
+                position: VecI(x: spawn.x, y: spawn.y).asQ8,
+                velocity: .zero,
+                integrity: integrity,
+                radius: state.content.bossRadius,
+                speedUnitsPerSecond: state.content.bossSpeed,
+                contactDps: state.content.bossContactDps,
+                state: .pursue,
+                stateTicks: 0,
+                spawnTick: state.tick,
+                nextSpecialTick: state.tick + UInt64(state.content.bossInitialDelay),
+                lockPosition: nil,
+                encounterId: "boss"
+            )
+        )
+        state.bossPhase = BossPhase.publicSafety.rawValue
+        state.phasesReached = [BossPhase.publicSafety.rawValue]
+        state.bossRuntime = BossRuntime()
+    }
+
+    mutating func testing_activateBossField(remaining: Int = 180) {
+        guard var runtime = state.bossRuntime, let emitter = state.arena.captainCameraEmitters.first else { return }
+        runtime.fieldRemaining = remaining
+        runtime.activeEmitter = emitter
+        runtime.currentAttack = .temporaryOrder
+        state.bossRuntime = runtime
+    }
+
+    mutating func testing_injectBossBolt() {
+        guard let boss = state.enemies.first(where: { $0.archetype == .algorithmicModerate }) else { return }
+        let pos = boss.position
+        state.projectiles.append(
+            ProjectileBody(
+                id: state.allocator.next(),
+                ownerId: boss.id,
+                kind: .bossBolt,
+                position: pos,
+                previous: pos,
+                velocity: .zero,
+                radius: 7,
+                damage: 8,
+                cameraDamage: 0,
+                age: 2,
+                lifetime: 90,
+                distanceTravelledQ8: 0,
+                maxTravelQ8: Int64(10_000) * Q8.scale,
+                hitEntityIds: [],
+                alive: true
+            )
+        )
+    }
+
+    mutating func testing_injectPulseHitting(position: VecQ8) {
+        let id = state.allocator.next()
+        let projectile = ProjectileBody(
+            id: id,
+            ownerId: state.player.id,
+            kind: .civicPulse,
+            position: position,
+            previous: position,
+            velocity: .zero,
+            radius: Targeting.projectileRadius,
+            damage: Targeting.enemyDamage,
+            cameraDamage: Targeting.cameraDamage,
+            age: 2,
+            lifetime: 10,
+            distanceTravelledQ8: 0,
+            maxTravelQ8: Int64(Targeting.maxTravel) * Q8.scale,
+            hitEntityIds: [],
+            alive: true
+        )
+        guard state.civicPool.checkout(projectile) else { return }
+        state.projectiles.append(projectile)
+    }
+
+    mutating func testing_completeMobAndEliteGraph() {
+        for id in EncounterDirector.encounterOrder {
+            var runtime = state.encounters[id] ?? EncounterRuntime(
+                id: id,
+                activated: true,
+                completed: true,
+                waveIndex: 0,
+                spawnQueue: [],
+                nextSpawnTick: 0,
+                deferTicks: 0,
+                living: 0,
+                spawned: state.content.encounters[id]?.totals ?? 0,
+                cleanupTick: nil
+            )
+            runtime.activated = true
+            runtime.completed = true
+            runtime.spawned = state.content.encounters[id]?.totals ?? runtime.spawned
+            state.encounters[id] = runtime
+        }
+        state.eliteDefeated = true
+    }
+
+    mutating func testing_defeatBoss() {
+        guard let index = state.enemies.firstIndex(where: { $0.archetype == .algorithmicModerate && $0.alive }) else {
+            return
+        }
+        state.enemies[index].integrity = 0
+        killEnemy(at: index, tick: state.tick)
+    }
+
     mutating func testing_injectPulseHitting(camera: SelectedCamera) {
         let pos = camera.position.asQ8
         let anchor = camera.targetAnchor

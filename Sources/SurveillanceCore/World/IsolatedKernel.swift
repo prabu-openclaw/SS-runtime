@@ -312,4 +312,80 @@ public enum IsolatedKernel {
             incompatibleSocketIds: []
         )
     }
+
+    /// BO-004: crossing a phase threshold during telegraph cancels the attack and enters recovery.
+    public static func bossPhaseTransitionDuringTelegraph() -> (
+        after: BossPhase,
+        recovery: Int,
+        telegraph: Int,
+        attack: BossAttackID?,
+        liveBossBolts: Int
+    ) {
+        var boss = EnemyBody(
+            id: EntityID(50),
+            archetype: .algorithmicModerate,
+            position: VecI(x: 2048, y: 768).asQ8,
+            velocity: .zero,
+            integrity: 390,
+            radius: 30,
+            speedUnitsPerSecond: 120,
+            contactDps: 16,
+            state: .pursue,
+            stateTicks: 0,
+            spawnTick: 0,
+            nextSpecialTick: 0,
+            lockPosition: nil,
+            encounterId: "boss"
+        )
+        var runtime = BossRuntime()
+        runtime.telegraphRemaining = 20
+        runtime.currentAttack = .safetyRationale
+        var projectiles = [
+            ProjectileBody(
+                id: EntityID(60),
+                ownerId: boss.id,
+                kind: .bossBolt,
+                position: boss.position,
+                previous: boss.position,
+                velocity: .zero,
+                radius: 7,
+                damage: 8,
+                cameraDamage: 0,
+                age: 2,
+                lifetime: 90,
+                distanceTravelledQ8: 0,
+                maxTravelQ8: Int64(10_000) * Q8.scale,
+                hitEntityIds: [],
+                alive: true
+            )
+        ]
+        var events = EventBuffer()
+        var allocator = EntityAllocator()
+        _ = allocator.next()
+        var pulse: Int?
+        var playerDamage = 0
+        BossSystem.step(
+            boss: &boss,
+            runtime: &runtime,
+            player: PlayerBody(id: EntityID(1), spawn: VecI(x: 160, y: 192)),
+            tick: 1,
+            emitters: [],
+            solids: [],
+            allocator: &allocator,
+            projectiles: &projectiles,
+            exposurePulse: &pulse,
+            playerDamage: &playerDamage,
+            events: &events,
+            baseSpeed: 120,
+            baseContact: 16
+        )
+        let liveBossBolts = projectiles.filter { $0.kind == .bossBolt && $0.alive }.count
+        return (
+            runtime.phase,
+            runtime.recoveryRemaining,
+            runtime.telegraphRemaining,
+            runtime.currentAttack,
+            liveBossBolts
+        )
+    }
 }
