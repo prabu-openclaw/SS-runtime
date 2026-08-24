@@ -33,6 +33,9 @@ public struct PresentationSnapshot: Equatable, Sendable {
     public var extractionArmed: Bool
     public var extractionRemaining: Int
     public var camerasDestroyed: Int
+    public var cameraObjectiveVisible: Bool
+    public var cameraObjectiveCopy: String
+    public var networkBlackout: Bool
     public var upgrade: UpgradeID?
     public var upgradePending: Bool
     public var tutorialCopy: String?
@@ -85,6 +88,16 @@ public struct PresentationSnapshot: Equatable, Sendable {
         extractionArmed = state.extraction.armed
         extractionRemaining = state.extraction.remaining
         camerasDestroyed = state.destructions.count
+        let damaged = camerasDestroyed > 0 || state.cameras.contains { $0.integrity < 3 }
+        cameraObjectiveVisible = HUDLayout.cameraObjectiveVisible(
+            destroyed: camerasDestroyed,
+            damaged: damaged
+        )
+        networkBlackout = state.networkBlackout
+        cameraObjectiveCopy = HUDLayout.cameraObjectiveCopy(
+            destroyed: camerasDestroyed,
+            complete: state.networkBlackout
+        )
         upgrade = state.upgrade.selected
         upgradePending = state.upgrade.pending
         tutorialCopy = state.tutorial.copy.isEmpty ? nil : state.tutorial.copy

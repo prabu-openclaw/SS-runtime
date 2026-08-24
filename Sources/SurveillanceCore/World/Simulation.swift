@@ -1263,6 +1263,16 @@ public struct Simulation: Equatable, Sendable {
         }
     }
 
+    mutating func testing_destroyCameraAtIndex(_ index: Int) {
+        guard state.cameras.indices.contains(index), state.cameras[index].isDamageable else { return }
+        state.cameras[index].integrity = 0
+        destroyCamera(at: index, projectile: EntityID(0), tick: state.tick + 1)
+    }
+
+    mutating func testing_setExtractionRemaining(_ value: Int) {
+        state.extraction.remaining = max(0, value)
+    }
+
     mutating func testing_setExposure(_ value: Int) {
         state.exposure.exposure = value
         state.exposure.peak = max(state.exposure.peak, value)

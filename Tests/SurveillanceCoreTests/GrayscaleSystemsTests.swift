@@ -92,6 +92,21 @@ struct GrayscaleSystemsTests {
         #expect(HUDLayout.extractionSeconds(0) == 0)
     }
 
+    @Test func cameraT413CounterHiddenUntilDamageThenAccolade() {
+        let hidden = HUDLayout.cameraObjectiveVisible(destroyed: 0, damaged: false)
+        let afterDamage = HUDLayout.cameraObjectiveVisible(destroyed: 0, damaged: true)
+        let afterDestroy = HUDLayout.cameraObjectiveVisible(destroyed: 1, damaged: true)
+        let partial = HUDLayout.cameraObjectiveCopy(destroyed: 7, complete: false)
+        let complete = HUDLayout.cameraObjectiveCopy(destroyed: 8, complete: true)
+        #expect(!hidden)
+        #expect(afterDamage)
+        #expect(afterDestroy)
+        #expect(partial == "CAM 7/8")
+        #expect(complete == HUDLayout.networkBlackoutAccolade)
+        #expect(HUDLayout.networkBlackoutAccolade == "NETWORK BLACKOUT 8/8")
+        #expect(HUDLayout.cameraObjectiveTotal == 8)
+    }
+
     @Test func bossPhaseBO002HealthBands() {
         #expect(BossPhase.from(hp: 800) == .publicSafety)
         #expect(BossPhase.from(hp: 600) == .publicSafety)
