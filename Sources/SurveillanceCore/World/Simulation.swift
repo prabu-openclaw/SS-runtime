@@ -40,6 +40,8 @@ public struct Simulation: Equatable, Sendable {
             outcome: .playing,
             failureReason: nil,
             diagnostic: nil,
+            terminalTick: nil,
+            terminalDigest: nil,
             player: PlayerBody(
                 id: playerID,
                 spawn: VecI(x: arena.playerSpawn.x, y: arena.playerSpawn.y)
@@ -1173,19 +1175,31 @@ public struct Simulation: Equatable, Sendable {
         }
     }
 
+    private mutating func sealTerminal(tick: UInt64) {
+        guard state.terminalDigest == nil else { return }
+        state.terminalTick = tick
+        state.terminalDigest = state.digest()
+    }
+
     private mutating func succeed(tick: UInt64) {
+        guard state.outcome != .failure, state.outcome != .invalid else { return }
+        guard state.outcome != .success else { return }
         state.outcome = .success
+        sealTerminal(tick: tick)
         events.emit(
             tick: tick,
             phase: 18,
             type: .runSucceeded,
-            payload: ["finalDigest": .string(state.digest())]
+            payload: ["finalDigest": .string(state.terminalDigest!)]
         )
     }
 
     private mutating func fail(_ reason: FailureReason, tick: UInt64) {
+        guard state.outcome != .invalid else { return }
+        if state.outcome == .failure { return }
         state.outcome = .failure
         state.failureReason = reason
+        sealTerminal(tick: tick)
         events.emit(
             tick: tick,
             phase: 18,
@@ -1195,8 +1209,10 @@ public struct Simulation: Equatable, Sendable {
     }
 
     private mutating func invalidate(_ code: DiagnosticCode) {
+        guard state.outcome == .playing || state.outcome == .upgradeSelectionPending else { return }
         state.outcome = .invalid
         state.diagnostic = code
+        sealTerminal(tick: state.tick)
         events.emit(
             tick: state.tick,
             phase: 18,

@@ -7,6 +7,8 @@ public struct WorldState: Equatable, Sendable {
     public var outcome: RunOutcome
     public var failureReason: FailureReason?
     public var diagnostic: DiagnosticCode?
+    public var terminalTick: UInt64?
+    public var terminalDigest: String?
     public var player: PlayerBody
     public var cameras: [SelectedCamera]
     public var enemies: [EnemyBody]

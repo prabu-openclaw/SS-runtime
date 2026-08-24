@@ -31,8 +31,8 @@ public struct RunReceipt: Equatable, Sendable {
         identity = state.identity
         seed = state.seed
         outcome = state.outcome
-        elapsedTicks = state.tick
-        finalDigest = state.digest()
+        elapsedTicks = state.terminalTick ?? state.tick
+        finalDigest = state.terminalDigest ?? state.digest()
         playerIntegrity = state.player.integrity
         damageTaken = state.player.damageTaken
         exposureFinal = state.exposure.exposure
