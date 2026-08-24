@@ -232,13 +232,13 @@ public struct Simulation: Equatable, Sendable {
         }
 
         resolvePlayerDeathAndContact(tick: tick)
-        if state.outcome == .failure {
-            return finishTick()
-        }
 
         var forceLockdown = false
-        advanceEncounters(tick: tick, forceLockdown: &forceLockdown)
+        if state.outcome != .failure {
+            advanceEncounters(tick: tick, forceLockdown: &forceLockdown)
+        }
 
+        // T410 / camera-destruction-001 §9: surviving contacts, then ordered Tamper, even on the death tick.
         let tamper = state.destructions.filter { $0.tick == tick }.sorted { $0.cameraId < $1.cameraId }.map { _ in 100 }
         let resolution = state.exposure.resolveTick(
             survivingContactCount: survivingContacts.count,
@@ -247,6 +247,10 @@ public struct Simulation: Equatable, Sendable {
             forceLockdown: forceLockdown
         )
         emitExposure(resolution, tick: tick)
+
+        if state.outcome == .failure {
+            return finishTick()
+        }
 
         applyNamedPulses(fogPulses, reason: .fogPulse, tick: tick)
         applyNamedPulses(observationPulses, reason: .observationPulse, tick: tick)
@@ -791,6 +795,9 @@ public struct Simulation: Equatable, Sendable {
         if points > 0 {
             applyPlayerDamage(applied.first?.id ?? state.player.id, amount: points, tick: tick)
         }
+        if state.player.integrity <= 0 && state.outcome != .failure && state.outcome != .invalid {
+            fail(.playerDeath, tick: tick)
+        }
 
         for i in state.mines.indices {
             state.mines[i].armRemaining = max(0, state.mines[i].armRemaining - 1)
@@ -1199,6 +1206,47 @@ public struct Simulation: Equatable, Sendable {
         state.upgrade.selected = upgrade
         state.upgrade.pending = false
         state.outcome = .playing
+    }
+
+    mutating func testing_setPlayerIntegrity(_ value: Int) {
+        state.player.integrity = max(0, value)
+    }
+
+    mutating func testing_keepOnlyCamera(at index: Int, integrity: Int) {
+        for i in state.cameras.indices {
+            state.cameras[i].integrity = i == index ? integrity : 0
+        }
+    }
+
+    mutating func testing_injectPulseHitting(camera: SelectedCamera) {
+        let pos = camera.position.asQ8
+        let anchor = camera.targetAnchor
+        let dx = anchor.x.raw - pos.x.raw
+        let dy = anchor.y.raw - pos.y.raw
+        let standOff = VecQ8(
+            x: Q8(raw: pos.x.raw + dx + dx / 2),
+            y: Q8(raw: pos.y.raw + dy + dy / 2)
+        )
+        let id = state.allocator.next()
+        let projectile = ProjectileBody(
+            id: id,
+            ownerId: state.player.id,
+            kind: .civicPulse,
+            position: standOff,
+            previous: standOff,
+            velocity: .zero,
+            radius: Targeting.projectileRadius,
+            damage: Targeting.enemyDamage,
+            cameraDamage: Targeting.cameraDamage,
+            age: 2,
+            lifetime: 10,
+            distanceTravelledQ8: 0,
+            maxTravelQ8: Int64(Targeting.maxTravel) * Q8.scale,
+            hitEntityIds: [],
+            alive: true
+        )
+        guard state.civicPool.checkout(projectile) else { return }
+        state.projectiles.append(projectile)
     }
 
     mutating func testing_destroyCameras() {
