@@ -3,6 +3,24 @@ public enum Handedness: String, Equatable, Sendable {
     case left
 }
 
+public enum HUDScaleSetting: Int, Equatable, Sendable, CaseIterable {
+    case standard = 1000
+    case large = 1150
+    case extraLarge = 1300
+}
+
+public struct HUDLayoutValidation: Equatable, Sendable {
+    public var clippedElements: [String]
+    public var controlsMeetTouchTarget: Bool
+    public var allInsideSafeCanvas: Bool
+
+    public init(clippedElements: [String], controlsMeetTouchTarget: Bool, allInsideSafeCanvas: Bool) {
+        self.clippedElements = clippedElements
+        self.controlsMeetTouchTarget = controlsMeetTouchTarget
+        self.allInsideSafeCanvas = allInsideSafeCanvas
+    }
+}
+
 public struct HUDRect: Equatable, Sendable {
     public var x: Int
     public var y: Int
@@ -20,12 +38,99 @@ public struct HUDRect: Equatable, Sendable {
 public enum HUDLayout {
     public static let referenceWidth = 844
     public static let referenceHeight = 390
+    /// plan.md §10 iPhone SE 3rd generation landscape safe canvas.
+    public static let seClassSafeWidth = 667
+    public static let seClassSafeHeight = 375
 
     public static func scale(safeWidth: Int, safeHeight: Int) -> Int {
         Int(min(
             IntMath.mulDivHalfAway(Int64(safeWidth), 1000, Int64(referenceWidth)),
             IntMath.mulDivHalfAway(Int64(safeHeight), 1000, Int64(referenceHeight))
         ))
+    }
+
+    public static func validate(
+        safeWidth: Int,
+        safeHeight: Int,
+        handedness: Handedness,
+        hudScale: HUDScaleSetting
+    ) -> HUDLayoutValidation {
+        var clipped: [String] = []
+        var controlsOk = true
+        for (name, rect) in controlRects(handedness: handedness) {
+            let mapped = mapControlRect(rect, safeWidth: safeWidth, safeHeight: safeHeight)
+            if mapped.x < 0 || mapped.y < 0 ||
+                mapped.x + mapped.width > safeWidth ||
+                mapped.y + mapped.height > safeHeight
+            {
+                clipped.append(name)
+            }
+            if !mapped.meetsTouchTarget {
+                controlsOk = false
+            }
+        }
+        return HUDLayoutValidation(
+            clippedElements: clipped.sorted(),
+            controlsMeetTouchTarget: controlsOk,
+            allInsideSafeCanvas: clipped.isEmpty
+        )
+    }
+
+    public static func informationalScalePermille(safeWidth: Int, safeHeight: Int, hudScale: HUDScaleSetting) -> Int {
+        let canvasPermille = scale(safeWidth: safeWidth, safeHeight: safeHeight)
+        return Int(IntMath.mulDivHalfAway(Int64(canvasPermille), Int64(hudScale.rawValue), 1000))
+    }
+
+    public static func mapControlRect(_ rect: HUDRect, safeWidth: Int, safeHeight: Int) -> HUDRect {
+        var mapped = mapReferenceRect(
+            rect,
+            safeWidth: safeWidth,
+            safeHeight: safeHeight,
+            hudScale: .standard,
+            informational: false
+        )
+        if mapped.width > safeWidth { mapped.width = safeWidth }
+        if mapped.height > safeHeight { mapped.height = safeHeight }
+        if mapped.x + mapped.width > safeWidth { mapped.x = safeWidth - mapped.width }
+        if mapped.y + mapped.height > safeHeight { mapped.y = safeHeight - mapped.height }
+        if mapped.x < 0 { mapped.x = 0 }
+        if mapped.y < 0 { mapped.y = 0 }
+        return mapped
+    }
+
+    public static func mapReferenceRect(
+        _ rect: HUDRect,
+        safeWidth: Int,
+        safeHeight: Int,
+        hudScale: HUDScaleSetting,
+        informational: Bool
+    ) -> HUDRect {
+        let canvasPermille = scale(safeWidth: safeWidth, safeHeight: safeHeight)
+        let elementPermille = informational
+            ? Int(IntMath.mulDivHalfAway(Int64(canvasPermille) * Int64(hudScale.rawValue), 1000, 1000))
+            : canvasPermille
+        let canvasW = Int(IntMath.mulDivHalfAway(Int64(referenceWidth) * Int64(canvasPermille), 1000, 1000))
+        let canvasH = Int(IntMath.mulDivHalfAway(Int64(referenceHeight) * Int64(canvasPermille), 1000, 1000))
+        let offsetX = (safeWidth - canvasW) / 2
+        let offsetY = (safeHeight - canvasH) / 2
+        return HUDRect(
+            x: offsetX + scaledCoordinate(rect.x, permille: elementPermille),
+            y: offsetY + scaledCoordinate(rect.y, permille: elementPermille),
+            width: scaledCoordinate(rect.width, permille: elementPermille),
+            height: scaledCoordinate(rect.height, permille: elementPermille)
+        )
+    }
+
+    private static func scaledCoordinate(_ value: Int, permille: Int) -> Int {
+        Int(IntMath.mulDivHalfAway(Int64(value) * Int64(permille), 1000, 1000))
+    }
+
+    private static func controlRects(handedness: Handedness) -> [(String, HUDRect)] {
+        [
+            ("stick", stick(handedness: handedness)),
+            ("dodge", dodge(handedness: handedness)),
+            ("pause", pause())
+        ]
     }
 
     public static func stick(handedness: Handedness) -> HUDRect {
