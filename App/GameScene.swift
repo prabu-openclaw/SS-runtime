@@ -79,6 +79,7 @@ final class GameSession {
 
 final class GameScene: SKScene {
     private let session = GameSession()
+    private let instrumentation = RunInstrumentation()
     private let worldNode = SKNode()
     private let cameraNode = SKCameraNode()
     private let hudNode = SKNode()
@@ -98,7 +99,9 @@ final class GameScene: SKScene {
     }
 
     override func update(_ currentTime: TimeInterval) {
+        instrumentation.frameTimes.recordFrame(timestamp: currentTime)
         session.step()
+        instrumentation.recordSimulation(session.simulation.state)
         redraw()
     }
 
