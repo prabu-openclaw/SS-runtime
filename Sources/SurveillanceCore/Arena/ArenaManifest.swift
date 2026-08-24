@@ -132,6 +132,7 @@ public enum ArenaValidationError: Equatable, Sendable {
     case counts
     case bounds
     case duplicateID(String)
+    case cameraPlacement
 }
 
 public enum ArenaLoader {
@@ -192,6 +193,13 @@ public enum ArenaLoader {
         guard ArenaReachability.spawnAlleyProtected(manifest) else { throw ArenaValidationError.bounds }
         guard ArenaReachability.diagonalSpine(manifest) else { throw ArenaValidationError.bounds }
         guard CivicSeamIdentity.zoneNamesMatchContract(manifest) else { throw ArenaValidationError.identity }
+        guard CameraPlacement.manifestPoolIsValid(manifest.cameraSockets) else {
+            throw ArenaValidationError.cameraPlacement
+        }
+        // Existence only. Full enumeration and fairness BFS stay in content CI (CP-010).
+        guard CameraPlacement.hasCompleteCompatibleSet(manifest.cameraSockets) else {
+            throw ArenaValidationError.cameraPlacement
+        }
     }
 }
 

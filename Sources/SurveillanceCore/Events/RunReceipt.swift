@@ -21,6 +21,9 @@ public struct RunReceipt: Equatable, Sendable {
     public var extractionArmed: Bool
     public var diagnostics: [String]
     public var destructions: [CameraDestructionRecord]
+    public var cameraPlacementVersion: String
+    public var placementSeed: UInt64
+    public var selectedSockets: [CameraPlacementReceiptEntry]
 
     public init(_ state: WorldState) {
         schemaVersion = "run-receipt-001"
@@ -48,6 +51,17 @@ public struct RunReceipt: Equatable, Sendable {
             if $0.cameraId != $1.cameraId { return $0.cameraId < $1.cameraId }
             return $0.tick < $1.tick
         }
+        cameraPlacementVersion = ContractVersions.cameraPlacement
+        placementSeed = CameraPlacement.placementSeed(runSeed: state.seed)
+        selectedSockets = state.cameras
+            .sorted { $0.socketId.utf8LessThan($1.socketId) }
+            .map {
+                CameraPlacementReceiptEntry(
+                    socketId: $0.socketId,
+                    cameraEntityId: $0.entityId,
+                    housingFamily: $0.housingFamily
+                )
+            }
     }
 
     public func canonical() -> CanonicalJSON {
@@ -100,7 +114,24 @@ public struct RunReceipt: Equatable, Sendable {
                 "phasesReached": .array(bossPhases.map { .string($0) }),
                 "defeated": .bool(bossDefeated)
             ]),
-            "diagnostics": .array(diagnostics.map { .string($0) })
+            "diagnostics": .array(diagnostics.map { .string($0) }),
+            "cameraPlacement": .object([
+                "version": .string(cameraPlacementVersion),
+                "placementSeed": .unsigned(placementSeed),
+                "selectedSockets": .array(selectedSockets.map { socket in
+                    .object([
+                        "socketId": .string(socket.socketId),
+                        "cameraEntityId": .unsigned(socket.cameraEntityId.raw),
+                        "housingFamily": .string(socket.housingFamily.rawValue)
+                    ])
+                })
+            ])
         ])
     }
+}
+
+public struct CameraPlacementReceiptEntry: Equatable, Sendable {
+    public var socketId: String
+    public var cameraEntityId: EntityID
+    public var housingFamily: HousingFamily
 }
