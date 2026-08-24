@@ -1197,7 +1197,7 @@
       "cancelWindows": [],
       "blendOrTransition": "immediateOnEvent",
       "reducedMotionClip": "camera_field_off",
-      "audioCue": "camera_network_tamper",
+      "audioCue": "camera_field_off",
       "vfxCue": "none"
     },
     {

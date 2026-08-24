@@ -9,7 +9,7 @@
     "objective_phoenix_steps_locked","objective_phoenix_steps_armed","objective_network_blackout"
   ],
   "audioEventIds":[
-    "weapon_civic_pulse","impact_enemy","player_damage","player_dodge","camera_hit_01","camera_hit_02","camera_critical","camera_destroy","camera_network_tamper","exposure_state_up","lockdown_enter",
+    "weapon_civic_pulse","impact_enemy","player_damage","player_dodge","camera_hit_01","camera_hit_02","camera_critical","camera_destroy","camera_field_off","camera_network_tamper","exposure_state_up","lockdown_enter",
     "upgrade_selected_signalJammer","upgrade_selected_ricochetPulse","upgrade_selected_ghostStep","daemon_query","daemon_dash","boss_defeated","extraction_armed","extraction_tick","extraction_reset","run_success","player_death","network_blackout"
   ]
 }

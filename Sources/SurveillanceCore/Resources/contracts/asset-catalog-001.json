@@ -9907,6 +9907,26 @@
       "admissionDecision": "plannedOriginal",
       "record": {
         "schemaVersion": "asset-record-001",
+        "assetId": "camera_field_off",
+        "kind": "audio",
+        "productionStatus": "planned",
+        "runtimeRequired": true,
+        "provenance": "projectOriginal",
+        "license": null,
+        "source": null,
+        "runtimePath": null,
+        "sha256": null,
+        "dimensions": null,
+        "colorSpace": null,
+        "alpha": null,
+        "ownerContract": "audio-haptics-001",
+        "notes": "T501 planned original. presentation-assets-001 required audio event ID. No clip admitted under LC-010."
+      }
+    },
+    {
+      "admissionDecision": "plannedOriginal",
+      "record": {
+        "schemaVersion": "asset-record-001",
         "assetId": "camera_network_tamper",
         "kind": "audio",
         "productionStatus": "planned",
