@@ -46,7 +46,7 @@ public struct CombatAuthoritySnapshot: Equatable, Sendable {
             mobEncountersRequired: EncounterDirector.mobEncounterCount,
             eliteDefeated: state.eliteDefeated,
             bossDefeated: state.bossDefeated,
-            bossPhasesReached: state.phasesReached,
+            bossPhasesReached: BossPhase.canonicalPhasesReached(state.phasesReached),
             complete: complete,
             currentNode: node
         )

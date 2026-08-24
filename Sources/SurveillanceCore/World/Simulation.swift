@@ -1471,6 +1471,10 @@ public struct Simulation: Equatable, Sendable {
         state.extraction.wasInside = value
     }
 
+    mutating func testing_setPhasesReached(_ phases: [String]) {
+        state.phasesReached = phases
+    }
+
     mutating func testing_setExposure(_ value: Int) {
         state.exposure.exposure = value
         state.exposure.peak = max(state.exposure.peak, value)
