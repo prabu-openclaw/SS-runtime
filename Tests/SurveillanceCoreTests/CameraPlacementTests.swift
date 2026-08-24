@@ -22,11 +22,16 @@ struct CameraPlacementTests {
                 #expect(housing == firstHousing)
                 #expect(ids == firstIds)
             }
-            #expect(sim.state.cameras.allSatisfy { $0.integrity == 3 })
+            let initialIntegrity = sim.state.cameras.map(\.integrity)
+            #expect(initialIntegrity.allSatisfy { $0 == 3 })
             sim.restart()
-            #expect(sim.state.cameras.map(\.socketId) == firstSockets)
-            #expect(sim.state.cameras.map(\.housingFamily) == firstHousing)
-            #expect(sim.state.cameras.map(\.entityId.raw) == firstIds)
+            let restarted = sim.state.cameras
+            let restartedSockets = restarted.map(\.socketId)
+            let restartedHousing = restarted.map(\.housingFamily)
+            let restartedIds = restarted.map(\.entityId.raw)
+            #expect(restartedSockets == firstSockets)
+            #expect(restartedHousing == firstHousing)
+            #expect(restartedIds == firstIds)
         }
     }
 
@@ -164,26 +169,36 @@ struct CameraPlacementTests {
         let housing = sim.state.cameras.map(\.housingFamily)
         let ids = sim.state.cameras.map(\.entityId.raw)
         sim.testing_destroyCameras()
-        #expect(sim.state.cameras.allSatisfy { $0.integrity == 0 })
+        let destroyedIntegrity = sim.state.cameras.map(\.integrity)
+        #expect(destroyedIntegrity.allSatisfy { $0 == 0 })
         sim.restart()
-        #expect(sim.state.cameras.map(\.socketId) == sockets)
-        #expect(sim.state.cameras.map(\.housingFamily) == housing)
-        #expect(sim.state.cameras.map(\.entityId.raw) == ids)
-        #expect(sim.state.cameras.allSatisfy { $0.integrity == 3 })
+        let restored = sim.state.cameras
+        let restoredSockets = restored.map(\.socketId)
+        let restoredHousing = restored.map(\.housingFamily)
+        let restoredIds = restored.map(\.entityId.raw)
+        let restoredIntegrity = restored.map(\.integrity)
+        #expect(restoredSockets == sockets)
+        #expect(restoredHousing == housing)
+        #expect(restoredIds == ids)
+        #expect(restoredIntegrity.allSatisfy { $0 == 3 })
         let receipt = RunReceipt(sim.state)
-        #expect(receipt.cameraPlacementVersion == ContractVersions.cameraPlacement)
-        #expect(receipt.placementSeed == CameraPlacement.placementSeed(runSeed: 11))
-        #expect(receipt.selectedSockets.map(\.socketId) == sockets)
+        let receiptVersion = receipt.cameraPlacementVersion
+        let receiptSeed = receipt.placementSeed
+        let receiptSockets = receipt.selectedSockets.map(\.socketId)
+        #expect(receiptVersion == ContractVersions.cameraPlacement)
+        #expect(receiptSeed == CameraPlacement.placementSeed(runSeed: 11))
+        #expect(receiptSockets == sockets)
     }
 
     @Test func cameraCP009PlacementDoesNotPerturbCombatRng() throws {
         let combat = Xoshiro256StarStar.combat(runSeed: 19)
         let before = (combat.s0, combat.s1, combat.s2, combat.s3)
         let sim = try Simulation.make(seed: 19)
-        #expect(sim.state.combatRng.s0 == before.0)
-        #expect(sim.state.combatRng.s1 == before.1)
-        #expect(sim.state.combatRng.s2 == before.2)
-        #expect(sim.state.combatRng.s3 == before.3)
+        let after = sim.state.combatRng
+        #expect(after.s0 == before.0)
+        #expect(after.s1 == before.1)
+        #expect(after.s2 == before.2)
+        #expect(after.s3 == before.3)
         var combatAgain = Xoshiro256StarStar.combat(runSeed: 19)
         var sequence: [UInt64] = []
         for _ in 0..<8 { sequence.append(combatAgain.next()) }

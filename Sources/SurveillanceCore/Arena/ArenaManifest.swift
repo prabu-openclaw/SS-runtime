@@ -196,6 +196,7 @@ public enum ArenaLoader {
         guard CameraPlacement.manifestPoolIsValid(manifest.cameraSockets) else {
             throw ArenaValidationError.cameraPlacement
         }
+        // Existence only. Full enumeration and fairness BFS stay in content CI (CP-010).
         guard CameraPlacement.hasCompleteCompatibleSet(manifest.cameraSockets) else {
             throw ArenaValidationError.cameraPlacement
         }

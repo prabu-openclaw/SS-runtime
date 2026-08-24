@@ -81,19 +81,12 @@ public enum CameraPlacement {
 
     /// Quota / incompatibility / tutorial / return-visible socket sets. Housing is seed-specific and excluded.
     public static func enumerateLegalSocketSets(_ sockets: [CameraSocket]) -> [[CameraSocket]] {
-        let enabled = sockets.filter(\.enabled).sorted { $0.socketId.utf8LessThan($1.socketId) }
-        var results: [[CameraSocket]] = []
-        searchAll(
-            zoneIndex: 0,
-            selected: [],
-            pools: Dictionary(grouping: enabled, by: \.zoneId),
-            results: &results
-        )
-        return results
+        collectLegalSocketSets(sockets, limit: nil)
     }
 
+    /// Cheap existence check for arena load. Stops at the first legal set; no fairness BFS.
     public static func hasCompleteCompatibleSet(_ sockets: [CameraSocket]) -> Bool {
-        !enumerateLegalSocketSets(sockets).isEmpty
+        !collectLegalSocketSets(sockets, limit: 1).isEmpty
     }
 
     /// Runtime selected-set assertions. No BFS. Does not reject pinned field-origin coordinates.
@@ -203,12 +196,27 @@ public enum CameraPlacement {
         }
     }
 
+    private static func collectLegalSocketSets(_ sockets: [CameraSocket], limit: Int?) -> [[CameraSocket]] {
+        let enabled = sockets.filter(\.enabled).sorted { $0.socketId.utf8LessThan($1.socketId) }
+        var results: [[CameraSocket]] = []
+        searchAll(
+            zoneIndex: 0,
+            selected: [],
+            pools: Dictionary(grouping: enabled, by: \.zoneId),
+            results: &results,
+            limit: limit
+        )
+        return results
+    }
+
     private static func searchAll(
         zoneIndex: Int,
         selected: [CameraSocket],
         pools: [String: [CameraSocket]],
-        results: inout [[CameraSocket]]
+        results: inout [[CameraSocket]],
+        limit: Int?
     ) {
+        if let limit, results.count >= limit { return }
         if zoneIndex == requiredByZone.count {
             if selected.count == 8, selected.filter(\.returnVisible).count >= 4 {
                 results.append(selected.sorted { $0.socketId.utf8LessThan($1.socketId) })
@@ -225,7 +233,8 @@ public enum CameraPlacement {
             rest: selected,
             zoneIndex: zoneIndex,
             pools: pools,
-            results: &results
+            results: &results,
+            limit: limit
         )
     }
 
@@ -237,8 +246,10 @@ public enum CameraPlacement {
         rest: [CameraSocket],
         zoneIndex: Int,
         pools: [String: [CameraSocket]],
-        results: inout [[CameraSocket]]
+        results: inout [[CameraSocket]],
+        limit: Int?
     ) {
+        if let limit, results.count >= limit { return }
         if picked.count == need {
             if requiredByZone[zoneIndex].zone == "Z-02",
                !picked.contains(where: \.tutorialEligible)
@@ -249,12 +260,14 @@ public enum CameraPlacement {
                 zoneIndex: zoneIndex + 1,
                 selected: rest + picked,
                 pools: pools,
-                results: &results
+                results: &results,
+                limit: limit
             )
             return
         }
         if start >= pool.count { return }
         for i in start..<pool.count {
+            if let limit, results.count >= limit { return }
             let candidate = pool[i]
             if isIncompatible(candidate, with: rest + picked) { continue }
             chooseAll(
@@ -265,7 +278,8 @@ public enum CameraPlacement {
                 rest: rest,
                 zoneIndex: zoneIndex,
                 pools: pools,
-                results: &results
+                results: &results,
+                limit: limit
             )
         }
     }
