@@ -141,7 +141,7 @@ final class GameScene: SKScene {
         let deviceEvidence = snapshot.makeDeviceRunEvidence(
             deviceClass: "iPhone 12",
             consecutiveCompleteRuns: deviceRunTracker.consecutiveCompleteRuns,
-            atlasMemoryBytes: snapshot.device.residentMemoryBytes
+            atlasMemoryBytes: nil
         )
         _ = try? ReleaseEvidenceStore.exportDeviceRunEvidence(deviceEvidence)
         if deviceRunTracker.consecutiveCompleteRuns >= 3,
