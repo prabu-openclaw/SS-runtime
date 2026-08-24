@@ -82,18 +82,25 @@ struct SpawnFairnessTests {
         #expect(afterRetryDefer == SpawnFairness.retryIntervalTicks * 2)
 
         var tick = UInt64(1 + SpawnFairness.retryIntervalTicks + 1)
+        var stillPlayingAtTwoSeventy = false
         while sim.state.outcome == .playing, tick <= 400 {
             _ = sim.step(command: .neutral(tick: tick))
+            if tick == 271 {
+                stillPlayingAtTwoSeventy = sim.state.outcome == .playing
+            }
             tick += 1
         }
         let enemies = sim.state.enemies.count
         let outcome = sim.state.outcome
         let diagnostic = sim.state.diagnostic
         let deferTicks = sim.state.encounters["M-A"]?.deferTicks ?? -1
+        let timeoutTick = sim.state.tick
+        #expect(stillPlayingAtTwoSeventy)
         #expect(enemies == 0)
         #expect(outcome == .invalid)
         #expect(diagnostic == .spawnFairnessTimeout)
         #expect(deferTicks == SpawnFairness.timeoutTicks)
+        #expect(timeoutTick == 301)
     }
 
     @Test func encounterEN003SimulationUsesLowerSocketID() throws {
@@ -133,6 +140,33 @@ struct SpawnFairnessTests {
         )
         let id = chosen?.id
         #expect(id == "far-off")
+    }
+
+    @Test func spawnFairnessMountSolidsRejectOverlappingVendor() throws {
+        let arena = try ArenaManifest.bundled()
+        let sockets = arena.enemySpawnSockets["M-B"] ?? []
+        let mount = AABB(center: VecI(x: 1152, y: 864), halfSize: VecI(x: 12, y: 12))
+        let vendor = SpawnFairness.select(
+            sockets: sockets.filter { $0.id == "mb-08" },
+            player: VecI(x: 1360, y: 1136).asQ8,
+            heading: VecQ8(unitsX: 1, unitsY: 0),
+            archetypeRadius: 22,
+            manifest: arena,
+            closedGateIDs: [],
+            extraSolids: [mount]
+        )
+        let withoutMount = SpawnFairness.select(
+            sockets: sockets.filter { $0.id == "mb-08" },
+            player: VecI(x: 1360, y: 1136).asQ8,
+            heading: VecQ8(unitsX: 1, unitsY: 0),
+            archetypeRadius: 22,
+            manifest: arena,
+            closedGateIDs: []
+        )
+        let blocked = vendor?.id
+        let open = withoutMount?.id
+        #expect(blocked == nil)
+        #expect(open == "mb-08")
     }
 
     @Test func spawnFairnessDocumentsPinnedSocketDefects() throws {

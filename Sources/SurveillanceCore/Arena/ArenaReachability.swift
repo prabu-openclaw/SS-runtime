@@ -230,18 +230,28 @@ public enum ArenaReachability {
 
     /// Authored backtrack aperture with the forward gate closed. Enemies do not block the Player,
     /// so peak-density parseability is this same corridor (T407 / arena.md §6).
+    /// The previous-zone AABB is inset by one cell so a trigger sitting on a shared edge
+    /// (M-C / Z-04 at x=1664) cannot pass without a real interior route.
     public static func escapeApertureOpen(_ manifest: ArenaManifest, encounter: String) -> Bool {
         guard let previousID = previousZoneID(for: encounter),
               let previous = zone(manifest, id: previousID),
               let trigger = manifest.encounterTriggers.first(where: { $0.encounterId == encounter }),
               let gate = forwardGateID(for: encounter)
         else { return false }
+        let inset = manifest.cellSizeUnits
+        let inner = AABB(
+            center: previous.center,
+            halfSize: VecI(
+                x: max(0, previous.halfSize.x - inset),
+                y: max(0, previous.halfSize.y - inset)
+            )
+        )
         return flood(
             from: trigger.center,
             radius: PlayerBody.radiusUnits,
             manifest: manifest,
             closedGateIDs: [gate]
-        ).intersects(previous.aabb)
+        ).intersects(inner)
     }
 
     public static func spawnAlleyProtected(_ manifest: ArenaManifest) -> Bool {
