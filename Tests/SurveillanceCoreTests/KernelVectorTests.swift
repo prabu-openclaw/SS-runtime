@@ -1,65 +1,68 @@
 import Testing
 @testable import SurveillanceCore
 
-@Test func exposureEX001OneCameraHundredTicks() {
-    var state = ExposureState()
-    for _ in 0..<100 {
-        _ = state.resolveTick(survivingContactCount: 1, tamperAmounts: [], signalJammer: false)
+@Suite(.serialized)
+struct KernelVectorTests {
+    @Test func exposureEX001OneCameraHundredTicks() {
+        var state = ExposureState()
+        for _ in 0..<100 {
+            _ = state.resolveTick(survivingContactCount: 1, tamperAmounts: [], signalJammer: false)
+        }
+        #expect(state.exposure == 200)
+        #expect(state.detectionState == .observed)
     }
-    #expect(state.exposure == 200)
-    #expect(state.detectionState == .observed)
-}
 
-@Test func exposureEX005RecoveryOnSixtyFirstTick() {
-    var state = ExposureState(exposure: 300, detectionState: .observed, noContactTicks: 0)
-    for _ in 0..<61 {
-        _ = state.resolveTick(survivingContactCount: 0, tamperAmounts: [], signalJammer: false)
+    @Test func exposureEX005RecoveryOnSixtyFirstTick() {
+        var state = ExposureState(exposure: 300, detectionState: .observed, noContactTicks: 0)
+        for _ in 0..<61 {
+            _ = state.resolveTick(survivingContactCount: 0, tamperAmounts: [], signalJammer: false)
+        }
+        #expect(state.exposure == 298)
+        #expect(state.noContactTicks == 61)
     }
-    #expect(state.exposure == 298)
-    #expect(state.noContactTicks == 61)
-}
 
-@Test func exposureEX002ThreeCamerasOneTick() {
-    var state = ExposureState()
-    let result = state.resolveTick(survivingContactCount: 3, tamperAmounts: [], signalJammer: false)
-    #expect(result.contactDelta == 4)
-}
+    @Test func exposureEX002ThreeCamerasOneTick() {
+        var state = ExposureState()
+        let result = state.resolveTick(survivingContactCount: 3, tamperAmounts: [], signalJammer: false)
+        #expect(result.contactDelta == 4)
+    }
 
-@Test func exposureEX003EightCamerasCapsAtFive() {
-    var state = ExposureState()
-    let result = state.resolveTick(survivingContactCount: 8, tamperAmounts: [], signalJammer: false)
-    #expect(result.contactDelta == 5)
-}
+    @Test func exposureEX003EightCamerasCapsAtFive() {
+        var state = ExposureState()
+        let result = state.resolveTick(survivingContactCount: 8, tamperAmounts: [], signalJammer: false)
+        #expect(result.contactDelta == 5)
+    }
 
-@Test func upgradeUP004SignalJammerContactDeltas() {
-    #expect(ExposureState.contactDelta(cameraCount: 1, signalJammer: true) == 1)
-    #expect(ExposureState.contactDelta(cameraCount: 2, signalJammer: true) == 2)
-    #expect(ExposureState.contactDelta(cameraCount: 8, signalJammer: true) == 4)
-}
+    @Test func upgradeUP004SignalJammerContactDeltas() {
+        #expect(ExposureState.contactDelta(cameraCount: 1, signalJammer: true) == 1)
+        #expect(ExposureState.contactDelta(cameraCount: 2, signalJammer: true) == 2)
+        #expect(ExposureState.contactDelta(cameraCount: 8, signalJammer: true) == 4)
+    }
 
-@Test func playerPC001FullRightSixtyTicks() {
-    let end = IsolatedKernel.moveFullRight(ticks: 60)
-    #expect(end.x.unitsTruncated == 496)
-    #expect(end.y.unitsTruncated == 256)
-}
+    @Test func playerPC001FullRightSixtyTicks() {
+        let end = IsolatedKernel.moveFullRight(ticks: 60)
+        #expect(end.x.unitsTruncated == 496)
+        #expect(end.y.unitsTruncated == 256)
+    }
 
-@Test func combatCB002EqualDistancePrefersLowerID() {
-    let id = IsolatedKernel.lowestTarget(candidates: [
-        (id: 11, distSq: 4096),
-        (id: 7, distSq: 4096)
-    ])
-    #expect(id == 7)
-}
+    @Test func combatCB002EqualDistancePrefersLowerID() {
+        let id = IsolatedKernel.lowestTarget(candidates: [
+            (id: 11, distSq: 4096),
+            (id: 7, distSq: 4096)
+        ])
+        #expect(id == 7)
+    }
 
-@Test func cameraCD001ThreeImpactsDestroyOnce() {
-    let result = IsolatedKernel.cameraIntegrity(impacts: 3)
-    #expect(result.integrity == 0)
-    #expect(result.tamper == 100)
-    #expect(result.destructions == 1)
-}
+    @Test func cameraCD001ThreeImpactsDestroyOnce() {
+        let result = IsolatedKernel.cameraIntegrity(impacts: 3)
+        #expect(result.integrity == 0)
+        #expect(result.tamper == 100)
+        #expect(result.destructions == 1)
+    }
 
-@Test func arenaAR008ExtractionLeaveResets() {
-    let result = IsolatedKernel.extractCycle(insideTicks: 299, leave: true, reenter: true)
-    #expect(result.afterLeave == 300)
-    #expect(result.afterReenter == 299)
+    @Test func arenaAR008ExtractionLeaveResets() {
+        let result = IsolatedKernel.extractCycle(insideTicks: 299, leave: true, reenter: true)
+        #expect(result.afterLeave == 300)
+        #expect(result.afterReenter == 299)
+    }
 }
