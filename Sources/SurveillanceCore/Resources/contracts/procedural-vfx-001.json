@@ -1,0 +1,232 @@
+{
+  "schemaVersion": "procedural-vfx-001",
+  "visualVersion": "visual-civic-seam-001",
+  "atlas": "combat_vfx.atlas",
+  "maxConcurrentEmitters": 16,
+  "standardHitStopMs": 50,
+  "captainHitStopMs": 90,
+  "playerDamageCoalesceTicks": 15,
+  "forbidFullScreenWhiteFlash": true,
+  "recipes": [
+    {
+      "id": "cameraAcquire",
+      "shape": "brackets",
+      "eventTypes": ["detectionStateChanged"],
+      "poolSize": 4,
+      "default": {
+        "language": "contractingReticleAndShortScan",
+        "particleCount": 0,
+        "lifetimeMs": 180,
+        "hitStopMs": 0,
+        "screenShake": false,
+        "fullScreenFlash": false
+      },
+      "reduced": {
+        "language": "staticReticleAndOpacityStep",
+        "particleCount": 0,
+        "lifetimeMs": 180,
+        "hitStopMs": 0,
+        "screenShake": false,
+        "fullScreenFlash": false
+      }
+    },
+    {
+      "id": "exposureThreshold",
+      "shape": "chevrons",
+      "eventTypes": ["detectionStateChanged"],
+      "poolSize": 2,
+      "default": {
+        "language": "hudPulseAndEdgeBrackets",
+        "particleCount": 0,
+        "lifetimeMs": 240,
+        "hitStopMs": 0,
+        "screenShake": false,
+        "fullScreenFlash": false
+      },
+      "reduced": {
+        "language": "iconSwapAndShortHighlight",
+        "particleCount": 0,
+        "lifetimeMs": 240,
+        "hitStopMs": 0,
+        "screenShake": false,
+        "fullScreenFlash": false
+      }
+    },
+    {
+      "id": "playerHit",
+      "shape": "narrowLine",
+      "eventTypes": ["playerDamaged"],
+      "poolSize": 2,
+      "default": {
+        "language": "oneToTwoFrameImpactAndDirectionalArc",
+        "particleCount": 2,
+        "lifetimeMs": 80,
+        "hitStopMs": 50,
+        "screenShake": true,
+        "fullScreenFlash": false
+      },
+      "reduced": {
+        "language": "directionalArcWithoutScreenFlash",
+        "particleCount": 0,
+        "lifetimeMs": 80,
+        "hitStopMs": 50,
+        "screenShake": false,
+        "fullScreenFlash": false
+      }
+    },
+    {
+      "id": "enemyHit",
+      "shape": "circle",
+      "eventTypes": ["entityDamaged"],
+      "poolSize": 8,
+      "default": {
+        "language": "compactSpark",
+        "particleCount": 3,
+        "lifetimeMs": 120,
+        "hitStopMs": 50,
+        "screenShake": false,
+        "fullScreenFlash": false
+      },
+      "reduced": {
+        "language": "outlineChange",
+        "particleCount": 0,
+        "lifetimeMs": 120,
+        "hitStopMs": 50,
+        "screenShake": false,
+        "fullScreenFlash": false
+      }
+    },
+    {
+      "id": "enemyDefeat",
+      "shape": "circle",
+      "eventTypes": ["entityDied"],
+      "poolSize": 8,
+      "default": {
+        "language": "fourToEightParticles",
+        "particleCount": 6,
+        "lifetimeMs": 350,
+        "hitStopMs": 50,
+        "screenShake": false,
+        "fullScreenFlash": false
+      },
+      "reduced": {
+        "language": "dissolveOrTwoParticleCue",
+        "particleCount": 2,
+        "lifetimeMs": 350,
+        "hitStopMs": 50,
+        "screenShake": false,
+        "fullScreenFlash": false
+      }
+    },
+    {
+      "id": "ghostStep",
+      "shape": "segmentedBoundary",
+      "eventTypes": ["dodgeStarted"],
+      "poolSize": 1,
+      "default": {
+        "language": "afterimageTrail",
+        "particleCount": 4,
+        "lifetimeMs": 300,
+        "hitStopMs": 0,
+        "screenShake": false,
+        "fullScreenFlash": false
+      },
+      "reduced": {
+        "language": "singleOutlineEcho",
+        "particleCount": 1,
+        "lifetimeMs": 300,
+        "hitStopMs": 0,
+        "screenShake": false,
+        "fullScreenFlash": false
+      }
+    },
+    {
+      "id": "ricochet",
+      "shape": "segmentedBoundary",
+      "eventTypes": ["projectileHit"],
+      "poolSize": 2,
+      "default": {
+        "language": "segmentedPathTrace",
+        "particleCount": 4,
+        "lifetimeMs": 200,
+        "hitStopMs": 0,
+        "screenShake": false,
+        "fullScreenFlash": false
+      },
+      "reduced": {
+        "language": "impactMarkersOnly",
+        "particleCount": 2,
+        "lifetimeMs": 200,
+        "hitStopMs": 0,
+        "screenShake": false,
+        "fullScreenFlash": false
+      }
+    },
+    {
+      "id": "lockdown",
+      "shape": "brokenRing",
+      "eventTypes": ["lockdownEntered"],
+      "poolSize": 1,
+      "default": {
+        "language": "oneControlledScenePulseAndBarriers",
+        "particleCount": 0,
+        "lifetimeMs": 400,
+        "hitStopMs": 0,
+        "screenShake": true,
+        "fullScreenFlash": false
+      },
+      "reduced": {
+        "language": "staticPerimeterChange",
+        "particleCount": 0,
+        "lifetimeMs": 400,
+        "hitStopMs": 0,
+        "screenShake": false,
+        "fullScreenFlash": false
+      }
+    },
+    {
+      "id": "captainTelegraph",
+      "shape": "cone",
+      "eventTypes": ["bossAttackStarted"],
+      "poolSize": 2,
+      "default": {
+        "language": "groundShapeAndBodyAnticipation",
+        "particleCount": 0,
+        "lifetimeMs": 450,
+        "hitStopMs": 90,
+        "screenShake": false,
+        "fullScreenFlash": false
+      },
+      "reduced": {
+        "language": "groundShapeAndPhaseIcon",
+        "particleCount": 0,
+        "lifetimeMs": 450,
+        "hitStopMs": 90,
+        "screenShake": false,
+        "fullScreenFlash": false
+      }
+    },
+    {
+      "id": "extraction",
+      "shape": "brackets",
+      "eventTypes": ["extractionArmed"],
+      "poolSize": 1,
+      "default": {
+        "language": "inwardParticlesAndStableBrackets",
+        "particleCount": 6,
+        "lifetimeMs": 480,
+        "hitStopMs": 0,
+        "screenShake": false,
+        "fullScreenFlash": false
+      },
+      "reduced": {
+        "language": "bracketsAndProgressFill",
+        "particleCount": 0,
+        "lifetimeMs": 480,
+        "hitStopMs": 0,
+        "screenShake": false,
+        "fullScreenFlash": false
+      }
+    }
+  ]
+}

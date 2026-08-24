@@ -30,6 +30,7 @@
     "smokeReplay": "runtime-kernel-001",
     "animation": "animation-civic-seam-001",
     "clipMetadata": "clip-metadata-001",
+    "proceduralVfx": "procedural-vfx-001",
     "visualAssets": "visual-civic-seam-001"
   }
 }

@@ -7,6 +7,7 @@ public enum ContractVersions {
     public static let cameraPlacement = "camera-placement-001"
     public static let animation = "animation-civic-seam-001"
     public static let clipMetadata = "clip-metadata-001"
+    public static let proceduralVFX = "procedural-vfx-001"
 }
 
 public struct ReplayIdentity: Equatable, Sendable {
