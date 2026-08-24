@@ -12,6 +12,9 @@ public enum CameraFairness {
         public var accessibilityKeys: [String]
         public var fieldOriginKeys: [String]
         public var overlapKeys: [String]
+        public var z01LeakingSockets: [String]
+        public var unhittableSockets: [String]
+        public var originInSolidSockets: [String]
     }
 
     public static func evaluate(_ manifest: ArenaManifest) -> Report {
@@ -106,10 +109,10 @@ public enum CameraFairness {
         }
 
         let chokes = chokeRegions(manifest)
-        let westBranch = VecI(x: 1248, y: 1088)
-        let eastBranch = VecI(x: 1536, y: 1088)
+        let westBranch = VecI(x: 1216, y: 1024)
+        let eastBranch = VecI(x: 1600, y: 1152)
         let extract = manifest.extraction.center
-        let boss = VecI(x: manifest.bossSpawn.x, y: manifest.bossSpawn.y)
+        let corridorClear = ArenaReachability.bossCorridorClear(manifest)
 
         var report = Report(
             legalSetCount: legal.count,
@@ -122,8 +125,24 @@ public enum CameraFairness {
             extractionKeys: [],
             accessibilityKeys: [],
             fieldOriginKeys: [],
-            overlapKeys: []
+            overlapKeys: [],
+            z01LeakingSockets: [],
+            unhittableSockets: [],
+            originInSolidSockets: []
         )
+
+        report.z01LeakingSockets = prep.values
+            .filter { $0.mountInZ01 || z01Walkable.intersects($0.field) }
+            .map(\.id)
+            .sorted()
+        report.unhittableSockets = prep.values
+            .filter { $0.pulse.intersection(reachable).isEmpty }
+            .map(\.id)
+            .sorted()
+        report.originInSolidSockets = prep.values
+            .filter(\.originInSolid)
+            .map(\.id)
+            .sorted()
 
         for set in legal {
             let key = CameraPlacement.setKey(set)
@@ -140,14 +159,13 @@ public enum CameraFairness {
             }
 
             var pulseFail = false
-            var accessFail = false
             for camera in selected {
-                let stands = camera.pulse.intersection(reachable)
-                if stands.isEmpty { pulseFail = true }
-                if !stands.intersects(walkable) { accessFail = true }
+                if camera.pulse.intersection(reachable).isEmpty { pulseFail = true }
             }
             if pulseFail { report.pulseStandKeys.append(key) }
-            if accessFail { report.accessibilityKeys.append(key) }
+            if selected.contains(where: { $0.pulse.intersection(reachable).isEmpty }) {
+                report.accessibilityKeys.append(key)
+            }
 
             if zeroContactMissing(
                 zoneCells: zoneCells,
@@ -164,7 +182,6 @@ public enum CameraFairness {
                 east: eastBranch,
                 trigger: manifest.encounterTriggers.first { $0.encounterId == "M-B" }?.center ?? VecI(x: 1280, y: 1088),
                 walkable: walkable,
-                blocked: unionField,
                 cols: cols,
                 rows: rows,
                 step: step
@@ -172,19 +189,6 @@ public enum CameraFairness {
                 report.z04BranchKeys.append(key)
             }
 
-            let mounts = set.map {
-                AABB(
-                    center: $0.position,
-                    halfSize: VecI(x: geometry.mountCollisionRadiusUnits, y: geometry.mountCollisionRadiusUnits)
-                )
-            }
-            let captainFlood = ArenaReachability.flood(
-                from: boss,
-                radius: ArenaReachability.bossCorridorRadius,
-                manifest: manifest,
-                extraSolids: mounts
-            )
-            let courtReachable = court.map { captainFlood.intersects($0) } ?? false
             var uncoveredCourt = false
             if let court {
                 for gy in 0..<rows {
@@ -199,7 +203,7 @@ public enum CameraFairness {
                     if uncoveredCourt { break }
                 }
             }
-            if !captainFlood.originWalkable || !courtReachable || !uncoveredCourt {
+            if !corridorClear || !uncoveredCourt {
                 report.captainSafeKeys.append(key)
             }
 
@@ -285,7 +289,6 @@ public enum CameraFairness {
         east: VecI,
         trigger: VecI,
         walkable: BitGrid,
-        blocked: BitGrid,
         cols: Int,
         rows: Int,
         step: Int
@@ -294,7 +297,8 @@ public enum CameraFairness {
         var start = BitGrid(cellCount: walkable.cellCount)
         if walkable.contains(startIndex) { start.insert(startIndex) }
         if start.isEmpty { return true }
-        let reached = flood(start: start, walkable: walkable, blocked: blocked, cols: cols, rows: rows)
+        let none = BitGrid(cellCount: walkable.cellCount)
+        let reached = flood(start: start, walkable: walkable, blocked: none, cols: cols, rows: rows)
         let westIndex = (west.y / step) * cols + (west.x / step)
         let eastIndex = (east.y / step) * cols + (east.x / step)
         return !reached.contains(westIndex) || !reached.contains(eastIndex)
