@@ -18,11 +18,7 @@ let package = Package(
         ),
         .testTarget(
             name: "SurveillanceCoreTests",
-            dependencies: ["SurveillanceCore"],
-            exclude: [
-                "AssetIntakeTests.swift",
-                "ArenaReachabilityTests.swift"
-            ]
+            dependencies: ["SurveillanceCore"]
         )
     ]
 )
