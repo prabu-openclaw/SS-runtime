@@ -62,6 +62,65 @@ public struct AudioProjection: Equatable, Sendable {
     public var captions: [String]
 }
 
+/// Compact read model for cue projection. `project` must not take `WorldState` by value:
+/// macOS 15 Swift Testing workers SIGBUS when that large struct is copied into this entry point.
+public struct AudioWorldQuery: Equatable, Sendable {
+    public var playerId: EntityID
+    public var playerPosition: VecQ8
+    public var outcome: RunOutcome
+    public var extractionArmed: Bool
+    public var hasAlgorithmicModerate: Bool
+    public var lockdownEntered: Bool
+    public var detectionState: DetectionState
+    public var viewport: ViewportSpec
+    public var positions: [EntityID: VecQ8]
+
+    public init(
+        playerId: EntityID,
+        playerPosition: VecQ8,
+        outcome: RunOutcome,
+        extractionArmed: Bool,
+        hasAlgorithmicModerate: Bool,
+        lockdownEntered: Bool,
+        detectionState: DetectionState,
+        viewport: ViewportSpec,
+        positions: [EntityID: VecQ8] = [:]
+    ) {
+        self.playerId = playerId
+        self.playerPosition = playerPosition
+        self.outcome = outcome
+        self.extractionArmed = extractionArmed
+        self.hasAlgorithmicModerate = hasAlgorithmicModerate
+        self.lockdownEntered = lockdownEntered
+        self.detectionState = detectionState
+        self.viewport = viewport
+        self.positions = positions
+    }
+
+    public static func from(_ state: WorldState) -> AudioWorldQuery {
+        var positions: [EntityID: VecQ8] = [state.player.id: state.player.position]
+        for enemy in state.enemies {
+            positions[enemy.id] = enemy.position
+        }
+        for camera in state.cameras {
+            positions[camera.entityId] = camera.position.asQ8
+        }
+        return AudioWorldQuery(
+            playerId: state.player.id,
+            playerPosition: state.player.position,
+            outcome: state.outcome,
+            extractionArmed: state.extraction.armed,
+            hasAlgorithmicModerate: state.enemies.contains {
+                $0.alive && $0.archetype == .algorithmicModerate
+            },
+            lockdownEntered: state.exposure.lockdownEntered,
+            detectionState: state.exposure.detectionState,
+            viewport: state.arena.viewport,
+            positions: positions
+        )
+    }
+}
+
 public struct AudioProjector: Equatable, Sendable {
     public var lastWeaponVoiceTick: UInt64?
     public var lastPlayerDamageTick: UInt64?
@@ -84,7 +143,7 @@ public struct AudioProjector: Equatable, Sendable {
     public mutating func project(
         tick: UInt64,
         events: [AuthoritativeEvent],
-        state: WorldState,
+        world: AudioWorldQuery,
         settings: PresentationAudioSettings = .enabled
     ) -> AudioProjection {
         var candidates: [ProjectedCue] = []
@@ -93,7 +152,7 @@ public struct AudioProjector: Equatable, Sendable {
         let cameraIDsHit = Set(cameraHits.compactMap { payloadString($0, "cameraId") })
 
         appendWeapon(tick: tick, events: events, into: &candidates)
-        appendImpacts(events: events, playerId: state.player.id, cameraIDsHit: cameraIDsHit, into: &candidates)
+        appendImpacts(events: events, playerId: world.playerId, cameraIDsHit: cameraIDsHit, into: &candidates)
         appendPlayerDamage(tick: tick, events: events, into: &candidates)
         appendDodge(events: events, into: &candidates)
         appendCameraHits(cameraHits, into: &candidates)
@@ -110,9 +169,9 @@ public struct AudioProjector: Equatable, Sendable {
             nextSequence += 1
             if let id = candidates[index].sourceEntityId {
                 candidates[index].sector = sector(
-                    from: state.player.position,
-                    to: position(of: id, in: state),
-                    viewport: state.arena.viewport
+                    from: world.playerPosition,
+                    to: world.positions[id],
+                    viewport: world.viewport
                 )
             }
             if !settings.hapticsEnabled {
@@ -130,21 +189,19 @@ public struct AudioProjector: Equatable, Sendable {
 
         return AudioProjection(
             cues: settings.effectsEnabled ? voices : [],
-            musicState: Self.musicState(state),
+            musicState: Self.musicState(world),
             captions: captionHistory
         )
     }
 
-    public static func musicState(_ state: WorldState) -> MusicState {
-        if state.outcome == .success || state.outcome == .failure || state.outcome == .invalid {
+    public static func musicState(_ world: AudioWorldQuery) -> MusicState {
+        if world.outcome == .success || world.outcome == .failure || world.outcome == .invalid {
             return .terminal
         }
-        if state.extraction.armed { return .extraction }
-        if state.enemies.contains(where: { $0.alive && $0.archetype == .algorithmicModerate }) {
-            return .boss
-        }
-        if state.exposure.lockdownEntered { return .lockdown }
-        if state.exposure.detectionState != .hidden { return .observed }
+        if world.extractionArmed { return .extraction }
+        if world.hasAlgorithmicModerate { return .boss }
+        if world.lockdownEntered { return .lockdown }
+        if world.detectionState != .hidden { return .observed }
         return .explore
     }
 
@@ -405,15 +462,6 @@ public struct AudioProjector: Equatable, Sendable {
 
     private func payloadInt(_ event: AuthoritativeEvent, _ key: String) -> Int64? {
         if case .integer(let value)? = event.payload[key] { return value }
-        return nil
-    }
-
-    private func position(of id: EntityID, in state: WorldState) -> VecQ8? {
-        if state.player.id == id { return state.player.position }
-        if let enemy = state.enemies.first(where: { $0.id == id }) { return enemy.position }
-        if let camera = state.cameras.first(where: { $0.entityId == id }) {
-            return camera.position.asQ8
-        }
         return nil
     }
 

@@ -3,18 +3,31 @@ import Testing
 
 @Suite(.serialized)
 struct AudioProjectorSmokeTests {
-    @Test func audioAH004DisabledSettingsLeaveDigestUnchanged() throws {
-        var sim = try Simulation.make(seed: 3)
-        let before = sim.state.digest()
+    @Test func audioProjectorProjectsEmptyDisabledCues() {
         var projector = AudioProjector()
-        _ = projector.project(
-            tick: sim.state.tick,
+        let world = AudioWorldQuery(
+            playerId: EntityID(1),
+            playerPosition: .zero,
+            outcome: .playing,
+            extractionArmed: false,
+            hasAlgorithmicModerate: false,
+            lockdownEntered: false,
+            detectionState: .hidden,
+            viewport: ViewportSpec(
+                baselineWorldWidth: 1920,
+                baselineWorldHeight: 1080,
+                deadZoneWidth: 64,
+                deadZoneHeight: 64,
+                maximumLookAheadUnits: 48
+            )
+        )
+        let projection = projector.project(
+            tick: 0,
             events: [],
-            state: sim.state,
+            world: world,
             settings: .disabled
         )
-        #expect(sim.state.digest() == before)
-        _ = sim.step(command: PlayerCommand(tick: 1, moveX: 0, moveY: 0, dodgePressed: false))
-        #expect(sim.state.digest() != before)
+        #expect(projection.cues.isEmpty)
+        #expect(projection.musicState == .explore)
     }
 }

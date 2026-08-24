@@ -22,7 +22,7 @@ import Testing
             )
         )
     }
-    let projection = projector.project(tick: 10, events: events, state: sim.state)
+    let projection = projector.project(tick: 10, events: events, world: .from(sim.state))
     #expect(projection.cues.count == 8)
     #expect(projection.cues.filter { $0.audioId == "camera_destroy" }.count == 7)
     #expect(projection.cues.contains { $0.audioId == "camera_network_tamper" && $0.variant == 3 })
@@ -46,7 +46,7 @@ import Testing
             insertion: i
         )
     }
-    let projection = projector.project(tick: 4, events: events, state: sim.state)
+    let projection = projector.project(tick: 4, events: events, world: .from(sim.state))
     #expect(projection.cues.filter { $0.audioId == "camera_destroy" }.count == 3)
     let tamper = try #require(projection.cues.first { $0.audioId == "camera_network_tamper" })
     #expect(tamper.variant == 3)
@@ -67,14 +67,14 @@ import Testing
         ],
         insertion: 0
     )
-    let first = projector.project(tick: 20, events: [damage], state: sim.state)
+    let first = projector.project(tick: 20, events: [damage], world: .from(sim.state))
     #expect(first.cues.contains { $0.audioId == "player_damage" })
     var later = damage
     later.tick = 30
-    let coalesced = projector.project(tick: 30, events: [later], state: sim.state)
+    let coalesced = projector.project(tick: 30, events: [later], world: .from(sim.state))
     #expect(coalesced.cues.contains { $0.audioId == "player_damage" } == false)
     later.tick = 35
-    let allowed = projector.project(tick: 35, events: [later], state: sim.state)
+    let allowed = projector.project(tick: 35, events: [later], world: .from(sim.state))
     #expect(allowed.cues.contains { $0.audioId == "player_damage" })
 }
 
@@ -85,7 +85,7 @@ import Testing
     _ = projector.project(
         tick: sim.state.tick,
         events: [],
-        state: sim.state,
+        world: .from(sim.state),
         settings: .disabled
     )
     #expect(sim.state.digest() == before)
@@ -111,10 +111,11 @@ import Testing
         payload: ["upgradeId": .string("ghostStep"), "selectionIndex": .integer(2)],
         insertion: 1
     )
-    let projection = projector.project(tick: 8, events: [hit, upgrade], state: sim.state)
+    let world = AudioWorldQuery.from(sim.state)
+    let projection = projector.project(tick: 8, events: [hit, upgrade], world: world)
     #expect(projection.cues.contains { $0.audioId == "camera_hit_01" })
     #expect(projection.cues.contains { $0.audioId == "upgrade_selected_ghostStep" })
-    #expect(AudioProjector.musicState(sim.state) == .explore)
+    #expect(AudioProjector.musicState(world) == .explore)
 }
 
 @Test func extractionTickFiresOnDisplayedSecondChange() throws {
@@ -134,6 +135,7 @@ import Testing
         payload: ["remainingTicks": .integer(299)],
         insertion: 0
     )
-    #expect(projector.project(tick: 50, events: [first], state: sim.state).cues.contains { $0.audioId == "extraction_tick" })
-    #expect(projector.project(tick: 51, events: [sameSecond], state: sim.state).cues.contains { $0.audioId == "extraction_tick" } == false)
+    let world = AudioWorldQuery.from(sim.state)
+    #expect(projector.project(tick: 50, events: [first], world: world).cues.contains { $0.audioId == "extraction_tick" })
+    #expect(projector.project(tick: 51, events: [sameSecond], world: world).cues.contains { $0.audioId == "extraction_tick" } == false)
 }
