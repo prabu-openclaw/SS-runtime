@@ -62,6 +62,18 @@ enum ReleaseEvidenceStore {
             d021DeviceProfiling: d021DeviceProfiling
         )
     }
+
+    static func exportExpansionGateReport(
+        options: ReleaseCandidateEvidenceCollector.Options = ReleaseCandidateEvidenceCollector.Options()
+    ) throws -> URL {
+        let directory = try directoryURL()
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let report = try ExpansionGateReporter.evaluate(options: options)
+        let filename = "expansion-gate-\(report.decision.rawValue.lowercased()).json"
+        let url = directory.appendingPathComponent(filename)
+        try report.canonical().serialize().write(to: url, atomically: true, encoding: .utf8)
+        return url
+    }
 }
 
 extension RunInstrumentation.Evidence {
