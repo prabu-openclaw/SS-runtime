@@ -1596,4 +1596,31 @@ public struct Simulation: Equatable, Sendable {
             guard state.civicPool.checkout(projectile) else { return }
         }
     }
+
+    /// T705: canonical post-M-A upgrade selection through Extraction success with zero Camera destruction.
+    @discardableResult
+    mutating func testing_completeRunSuccess(upgrade: UpgradeID) -> TickResult {
+        testing_completeEncounter("M-A")
+        testing_armUpgradeSelection()
+        let selectTick = state.tick + 1
+        _ = step(
+            command: PlayerCommand(
+                tick: selectTick,
+                moveX: 0,
+                moveY: 0,
+                dodgePressed: false,
+                upgradeChoiceIndex: upgrade.selectionIndex
+            )
+        )
+        testing_completeCombatGraph()
+        _ = step(command: .neutral(tick: state.tick + 1))
+        let extract = state.arena.extraction.center
+        testing_setPlayerPosition(VecI(x: extract.x, y: extract.y))
+        var result = TickResult(tick: state.tick, events: [], digest: state.digest(), outcome: state.outcome)
+        let countdown = state.arena.extraction.countdownTicks
+        for _ in 0..<countdown {
+            result = step(command: .neutral(tick: state.tick + 1))
+        }
+        return result
+    }
 }
