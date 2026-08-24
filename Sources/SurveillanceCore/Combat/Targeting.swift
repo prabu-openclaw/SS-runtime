@@ -94,6 +94,37 @@ public enum Targeting {
         return (best.id, best.anchor)
     }
 
+    /// `upgrades.md` Ricochet Pulse: one continuation, nearest then lowest ID, excluding the origin target.
+    public static func ricochetTarget(
+        origin: VecQ8,
+        excluding: EntityID,
+        enemies: [EnemyBody],
+        cameras: [SelectedCamera],
+        solids: [(id: String, box: AABB)]
+    ) -> (EntityID, VecQ8)? {
+        struct Candidate { var id: EntityID; var distSq: Int64; var anchor: VecQ8 }
+        var list: [Candidate] = []
+        let range = Int64(ricochetRange) * Q8.scale
+        for enemy in enemies where enemy.alive && enemy.id != excluding {
+            let distSq = origin.distanceSquared(to: enemy.position)
+            if distSq <= range * range, Collision.lineOfFireClear(from: origin, to: enemy.position, solids: solids) {
+                list.append(Candidate(id: enemy.id, distSq: distSq, anchor: enemy.position))
+            }
+        }
+        for camera in cameras where camera.isDamageable && camera.entityId != excluding {
+            let distSq = origin.distanceSquared(to: camera.targetAnchor)
+            if distSq <= range * range, Collision.lineOfFireClear(from: origin, to: camera.targetAnchor, solids: solids) {
+                list.append(Candidate(id: camera.entityId, distSq: distSq, anchor: camera.targetAnchor))
+            }
+        }
+        list.sort {
+            if $0.distSq != $1.distSq { return $0.distSq < $1.distSq }
+            return $0.id < $1.id
+        }
+        guard let next = list.first else { return nil }
+        return (next.id, next.anchor)
+    }
+
     public static func inRange(_ distSqQ8: Int64) -> Bool {
         let r = Int64(civicPulseRange) * Q8.scale
         return distSqQ8 <= r * r

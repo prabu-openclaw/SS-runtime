@@ -114,8 +114,48 @@ struct ContractVectorTests {
         #expect(state.exposure == 300)
     }
 
+    @Test func upgradeUP006RicochetEqualDistancePrefersLowerID() {
+        let ids = IsolatedKernel.ricochetEqualDistanceLowerId()
+        #expect(ids.0 == 10)
+        #expect(ids.1 == 10)
+    }
+
+    @Test func upgradeUP007DestroyedCameraExcludedFromContinuation() {
+        let id = IsolatedKernel.ricochetSkipsDestroyedCamera()
+        #expect(id == 9)
+    }
+
     @Test func upgradeUP008GhostStepImmunityThroughStartPlus29() {
         #expect(IsolatedKernel.ghostStepImmunityTick() == 129)
+    }
+
+    @Test func upgradeUP009GhostStepHostileProjectileStillDamages() throws {
+        var sim = try Simulation.make(seed: 1)
+        sim.testing_selectUpgrade(.ghostStep)
+        _ = sim.step(
+            command: PlayerCommand(tick: 1, moveX: PlayerCommand.axisMaximum, moveY: 0, dodgePressed: true)
+        )
+        let immuneThrough = sim.state.player.cameraInvisibleUntilTick
+        let before = sim.state.player.integrity
+        sim.testing_injectHostileBolt()
+        _ = sim.step(command: .neutral(tick: 2))
+        let after = sim.state.player.integrity
+        let stillImmune = sim.state.player.isCameraInvisible(tick: 2)
+        #expect(immuneThrough == 30)
+        #expect(stillImmune)
+        #expect(after == before - 10)
+    }
+
+    @Test func upgradeUP010RestartClearsSelectedUpgrade() throws {
+        var sim = try Simulation.make(seed: 1)
+        sim.testing_selectUpgrade(.signalJammer)
+        sim.restart()
+        let selected = sim.state.upgrade.selected
+        let pending = sim.state.upgrade.pending
+        let mobAComplete = sim.state.encounters["M-A"]?.completed ?? true
+        #expect(selected == nil)
+        #expect(!pending)
+        #expect(!mobAComplete)
     }
 
     @Test func encounterEN001WaveTotals() {

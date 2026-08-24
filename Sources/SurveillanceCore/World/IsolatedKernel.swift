@@ -233,4 +233,83 @@ public enum IsolatedKernel {
         )
         return player.cameraInvisibleUntilTick
     }
+
+    /// UP-006: equal-distance living enemies, nearest then lowest stable ID.
+    public static func ricochetEqualDistanceLowerId() -> (UInt64, UInt64) {
+        let origin = VecI(x: 200, y: 200)
+        let high = informant(id: 20, at: VecI(x: 280, y: 200))
+        let low = informant(id: 10, at: VecI(x: 120, y: 200))
+        let forward = Targeting.ricochetTarget(
+            origin: origin.asQ8,
+            excluding: EntityID(1),
+            enemies: [high, low],
+            cameras: [],
+            solids: []
+        )
+        let reversed = Targeting.ricochetTarget(
+            origin: origin.asQ8,
+            excluding: EntityID(1),
+            enemies: [low, high],
+            cameras: [],
+            solids: []
+        )
+        return (forward?.0.raw ?? 0, reversed?.0.raw ?? 0)
+    }
+
+    /// UP-007: a Camera destroyed by the first impact is not a continuation candidate.
+    public static func ricochetSkipsDestroyedCamera() -> UInt64 {
+        let origin = VecI(x: 200, y: 200)
+        let destroyed = camera(id: 8, at: origin, integrity: 0)
+        let living = camera(id: 9, at: VecI(x: 280, y: 200), integrity: 1)
+        let chosen = Targeting.ricochetTarget(
+            origin: origin.asQ8,
+            excluding: EntityID(1),
+            enemies: [],
+            cameras: [destroyed, living],
+            solids: []
+        )
+        return chosen?.0.raw ?? 0
+    }
+
+    private static func informant(id: UInt64, at position: VecI) -> EnemyBody {
+        EnemyBody(
+            id: EntityID(id),
+            archetype: .autonomousInformant,
+            position: position.asQ8,
+            velocity: .zero,
+            integrity: 20,
+            radius: 16,
+            speedUnitsPerSecond: 0,
+            contactDps: 0,
+            state: .pursue,
+            stateTicks: 0,
+            spawnTick: 0,
+            nextSpecialTick: 0,
+            lockPosition: nil,
+            encounterId: "test"
+        )
+    }
+
+    private static func camera(id: UInt64, at position: VecI, integrity: Int) -> SelectedCamera {
+        let q = position.asQ8
+        return SelectedCamera(
+            socketId: "test-\(id)",
+            entityId: EntityID(id),
+            housingFamily: .municipalDome,
+            zoneId: "Z-03",
+            position: position,
+            headingMilliDegrees: 0,
+            rangeUnits: 300,
+            fieldAngleMilliDegrees: 60_000,
+            tutorialEligible: false,
+            returnVisible: true,
+            integrity: integrity,
+            mountCollisionRadius: 12,
+            hitRadius: 16,
+            fieldOrigin: q,
+            targetAnchor: q,
+            wasDetecting: false,
+            incompatibleSocketIds: []
+        )
+    }
 }
