@@ -36,6 +36,13 @@ struct GateVerificationTests {
         #expect(GateRegistry.evidence(for: "G-001")?.note?.contains("T903") == true)
     }
 
+    @Test func gateT902UnmappedGatesTrackedForT907() {
+        let unmapped = GateRegistry.unmappedGateIds()
+        #expect(unmapped.count > 0)
+        #expect(unmapped.contains("A-001"))
+        #expect(!unmapped.contains("B-001"))
+    }
+
     @Test func gateC009TenConsecutiveCompleteRunsPass() throws {
         for upgrade in UpgradeID.allCases {
             for _ in 0..<10 {

@@ -11,6 +11,7 @@ final class GameSession {
         tamperVisible: false,
         tamperCopy: ""
     )
+    private(set) var terminalReceiptStored = false
     var moveX: Int16 = 0
     var moveY: Int16 = 0
     var dodgePressed = false
@@ -49,6 +50,23 @@ final class GameSession {
             )
         }
         applyCameraHUD(result)
+        persistTerminalReceiptIfNeeded()
+    }
+
+    private func persistTerminalReceiptIfNeeded() {
+        guard !terminalReceiptStored, simulation.state.outcome != .playing else { return }
+        if (try? ReceiptStore.persistTerminalReceipt(for: simulation.state)) != nil {
+            terminalReceiptStored = true
+        }
+    }
+
+    func restartRun(seed: UInt64 = 1) {
+        simulation = try! Simulation.make(seed: seed)
+        terminalReceiptStored = false
+        pendingUpgradeChoice = nil
+        moveX = 0
+        moveY = 0
+        dodgePressed = false
     }
 
     private func applyCameraHUD(_ result: TickResult) {
@@ -95,6 +113,13 @@ final class GameScene: SKScene {
         addChild(cameraNode)
         camera = cameraNode
         cameraNode.addChild(hudNode)
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.didReceiveMemoryWarningNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.instrumentation.noteMemoryWarning()
+        }
         redraw()
     }
 
