@@ -82,8 +82,7 @@ public enum ClipAlignment {
         catalog: ClipCatalog
     ) -> ClipPlayback {
         let fallback = catalog.clips.first { $0.actorRole == query.actorRole }
-        var clip = catalog.clipsById[query.currentClipId] ?? fallback
-        guard var clip else {
+        guard var clip = catalog.clipsById[query.currentClipId] ?? fallback else {
             return ClipPlayback(
                 clipId: query.currentClipId,
                 direction: "",
