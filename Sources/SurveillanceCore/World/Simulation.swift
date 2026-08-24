@@ -864,19 +864,20 @@ public struct Simulation: Equatable, Sendable {
         for id in EncounterDirector.encounterOrder {
             guard var runtime = state.encounters[id], runtime.activated, !runtime.completed else { continue }
             if !runtime.spawnQueue.isEmpty, tick >= runtime.nextSpawnTick {
-                let archetype = runtime.spawnQueue.removeFirst()
-                if spawnEnemy(archetype, encounter: id, tick: tick) {
-                    runtime.spawned += 1
-                    runtime.living += 1
-                    runtime.deferTicks = 0
-                    let interval = state.content.encounters[id]?.waves[runtime.waveIndex].interval ?? 30
-                    runtime.nextSpawnTick = tick + UInt64(interval)
+                if runtime.deferTicks >= SpawnFairness.timeoutTicks {
+                    invalidate(.spawnFairnessTimeout)
                 } else {
-                    runtime.spawnQueue.insert(archetype, at: 0)
-                    runtime.deferTicks += SpawnFairness.retryIntervalTicks
-                    runtime.nextSpawnTick = tick + UInt64(SpawnFairness.retryIntervalTicks)
-                    if runtime.deferTicks >= SpawnFairness.timeoutTicks {
-                        invalidate(.spawnFairnessTimeout)
+                    let archetype = runtime.spawnQueue.removeFirst()
+                    if spawnEnemy(archetype, encounter: id, tick: tick) {
+                        runtime.spawned += 1
+                        runtime.living += 1
+                        runtime.deferTicks = 0
+                        let interval = state.content.encounters[id]?.waves[runtime.waveIndex].interval ?? 30
+                        runtime.nextSpawnTick = tick + UInt64(interval)
+                    } else {
+                        runtime.spawnQueue.insert(archetype, at: 0)
+                        runtime.deferTicks += SpawnFairness.retryIntervalTicks
+                        runtime.nextSpawnTick = tick + UInt64(SpawnFairness.retryIntervalTicks)
                     }
                 }
             }
@@ -923,6 +924,12 @@ public struct Simulation: Equatable, Sendable {
         guard let stats = state.content.standardEnemies[archetype] else { return false }
         guard let sockets = state.arena.enemySpawnSockets[encounter] else { return false }
         let closed = Set(state.gates.filter(\.closed).map(\.id))
+        let mounts = state.cameras.map { camera in
+            AABB(
+                center: camera.position,
+                halfSize: VecI(x: camera.mountCollisionRadius, y: camera.mountCollisionRadius)
+            )
+        }
         guard let socket = SpawnFairness.select(
             sockets: sockets,
             player: state.player.position,
@@ -930,6 +937,7 @@ public struct Simulation: Equatable, Sendable {
             archetypeRadius: stats.radius,
             manifest: state.arena,
             closedGateIDs: closed,
+            extraSolids: mounts,
             lethalVolumes: lethalVolumes()
         ) else { return false }
         let id = state.allocator.next()
