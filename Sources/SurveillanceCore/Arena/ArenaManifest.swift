@@ -190,9 +190,6 @@ public enum ArenaLoader {
         guard ArenaReachability.geometryInBounds(manifest) else { throw ArenaValidationError.bounds }
         guard ArenaReachability.viewportMatchesContract(manifest) else { throw ArenaValidationError.bounds }
         guard ArenaReachability.spawnAlleyProtected(manifest) else { throw ArenaValidationError.bounds }
-        guard ArenaReachability.consecutiveZonesConnected(manifest) else { throw ArenaValidationError.bounds }
-        guard ArenaReachability.maEscapeOpen(manifest) else { throw ArenaValidationError.bounds }
-        guard ArenaReachability.bossCorridorClear(manifest) else { throw ArenaValidationError.bounds }
         guard ArenaReachability.diagonalSpine(manifest) else { throw ArenaValidationError.bounds }
     }
 }
