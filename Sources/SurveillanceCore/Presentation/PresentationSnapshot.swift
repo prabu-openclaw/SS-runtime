@@ -35,6 +35,7 @@ public struct PresentationSnapshot: Equatable, Sendable {
     public var extraction: AABB
     public var extractionArmed: Bool
     public var extractionRemaining: Int
+    public var combatObjectiveCopy: String
     public var camerasDestroyed: Int
     public var cameraObjectiveVisible: Bool
     public var cameraObjectiveCopy: String
@@ -94,6 +95,17 @@ public struct PresentationSnapshot: Equatable, Sendable {
         extraction = state.arena.extraction.aabb
         extractionArmed = state.extraction.armed
         extractionRemaining = state.extraction.remaining
+        let authority = CombatAuthoritySnapshot.project(state)
+        let playerPoint = VecI(
+            x: state.player.position.x.unitsTruncated,
+            y: state.player.position.y.unitsTruncated
+        )
+        let insideExtraction = state.arena.extraction.aabb.contains(playerPoint)
+        combatObjectiveCopy = HUDLayout.combatObjectiveCopy(
+            node: authority.currentNode,
+            extractionArmed: state.extraction.armed,
+            insideLockedExtraction: insideExtraction && !state.extraction.armed
+        )
         camerasDestroyed = state.destructions.count
         let damaged = camerasDestroyed > 0 || state.cameras.contains { $0.integrity < 3 }
         cameraObjectiveVisible = HUDLayout.cameraObjectiveVisible(

@@ -18,6 +18,7 @@ public struct RunReceipt: Equatable, Sendable {
     public var upgrade: UpgradeID?
     public var bossPhases: [String]
     public var bossDefeated: Bool
+    public var combatAuthority: CombatAuthoritySnapshot
     public var extractionArmed: Bool
     public var diagnostics: [String]
     public var destructions: [CameraDestructionRecord]
@@ -45,6 +46,7 @@ public struct RunReceipt: Equatable, Sendable {
         upgrade = state.upgrade.selected
         bossPhases = state.phasesReached
         bossDefeated = state.bossDefeated
+        combatAuthority = CombatAuthoritySnapshot.project(state)
         extractionArmed = state.extraction.armed
         diagnostics = state.diagnostic.map { [$0.rawValue] } ?? []
         destructions = state.destructions.sorted {
@@ -92,23 +94,37 @@ public struct RunReceipt: Equatable, Sendable {
                 "defeatsByArchetype": .object(defeatsByArchetype.mapValues { .integer(Int64($0)) })
             ]),
             "objectives": .object([
+                "combatAuthority": .object([
+                    "mobEncountersComplete": .integer(Int64(combatAuthority.mobEncountersComplete)),
+                    "mobEncountersRequired": .integer(Int64(combatAuthority.mobEncountersRequired)),
+                    "elite": .object([
+                        "id": .string(EncounterDirector.eliteReceiptId),
+                        "defeated": .bool(combatAuthority.eliteDefeated)
+                    ]),
+                    "boss": .object([
+                        "id": .string(EncounterDirector.bossReceiptId),
+                        "defeated": .bool(combatAuthority.bossDefeated),
+                        "phasesReached": .array(combatAuthority.bossPhasesReached.map { .string($0) })
+                    ]),
+                    "complete": .bool(combatAuthority.complete)
+                ]),
                 "networkBlackout": .object([
                     "camerasDestroyed": .integer(Int64(camerasDestroyed)),
                     "camerasTotal": .integer(8),
                     "complete": .bool(networkBlackout)
                 ]),
-                "extraction": .object(["armed": .bool(extractionArmed)]),
-                "cameraDestructions": .array(destructions.map { record in
-                    .object([
-                        "cameraId": .string(record.cameraId.decimalString),
-                        "tick": .unsigned(record.tick),
-                        "housingFamily": .string(record.housingFamily.rawValue),
-                        "wasDetectingPlayer": .bool(record.wasDetectingPlayer),
-                        "exposureBefore": .integer(Int64(record.exposureBefore)),
-                        "exposureAfter": .integer(Int64(record.exposureAfter))
-                    ])
-                })
+                "extraction": .object(["armed": .bool(extractionArmed)])
             ]),
+            "cameraDestructions": .array(destructions.map { record in
+                .object([
+                    "cameraId": .string(record.cameraId.decimalString),
+                    "tick": .unsigned(record.tick),
+                    "housingFamily": .string(record.housingFamily.rawValue),
+                    "wasDetectingPlayer": .bool(record.wasDetectingPlayer),
+                    "exposureBefore": .integer(Int64(record.exposureBefore)),
+                    "exposureAfter": .integer(Int64(record.exposureAfter))
+                ])
+            }),
             "upgrade": upgrade.map { .string($0.rawValue) } ?? .null,
             "boss": .object([
                 "phasesReached": .array(bossPhases.map { .string($0) }),

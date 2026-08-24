@@ -72,6 +72,27 @@ public enum HUDLayout {
         complete ? networkBlackoutAccolade : "CAM \(destroyed)/\(cameraObjectiveTotal)"
     }
 
+    public static let lockedExtractionCopy = "DEFEAT THE CURRENT AUTHORITY"
+    public static let phoenixStepsOpenCopy = "PHOENIX STEPS OPEN"
+
+    /// hud-tutorial-001 §Exact copy: current graph node, locked Extraction contact, or armed Extraction.
+    public static func combatObjectiveCopy(
+        node: CombatAuthorityNode,
+        extractionArmed: Bool,
+        insideLockedExtraction: Bool
+    ) -> String {
+        if extractionArmed { return phoenixStepsOpenCopy }
+        if insideLockedExtraction { return lockedExtractionCopy }
+        switch node {
+        case .mobA: return "MOB ENCOUNTER A"
+        case .mobB: return "MOB ENCOUNTER B"
+        case .mobC: return "MOB ENCOUNTER C"
+        case .improperSearchDaemon: return "IMPROPER SEARCH DAEMON"
+        case .algorithmicModerate: return "ALGORITHMIC MODERATE"
+        case .extraction: return phoenixStepsOpenCopy
+        }
+    }
+
     private static func reflect(_ rect: HUDRect, _ handedness: Handedness) -> HUDRect {
         handedness == .left ? rect.reflected() : rect
     }
