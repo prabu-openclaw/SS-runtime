@@ -1263,18 +1263,10 @@ public struct Simulation: Equatable, Sendable {
         }
     }
 
-    mutating func testing_setCamerasIntegrity(_ value: Int) {
-        for i in state.cameras.indices {
-            state.cameras[i].integrity = value
-        }
-    }
-
-    mutating func testing_destroyNextDamageableCamera(tick: UInt64) -> TickResult {
-        guard let camera = state.cameras.first(where: \.isDamageable) else {
-            return step(command: .neutral(tick: tick))
-        }
-        testing_injectPulseHitting(camera: camera)
-        return step(command: .neutral(tick: tick))
+    mutating func testing_destroyCameraAtIndex(_ index: Int) {
+        guard state.cameras.indices.contains(index), state.cameras[index].isDamageable else { return }
+        state.cameras[index].integrity = 0
+        destroyCamera(at: index, projectile: EntityID(0), tick: state.tick + 1)
     }
 
     mutating func testing_setExtractionRemaining(_ value: Int) {

@@ -192,12 +192,12 @@ struct CameraDestructionOrderTests {
 
     @Test func cameraCD012EighthDestructionCompletesNetworkBlackoutOnce() throws {
         var sim = try Simulation.make(seed: 1)
-        sim.testing_setCamerasIntegrity(1)
         var blackoutEvents = 0
         var destroyedCount = 0
         var totalCount = 0
-        for tick in 1...8 {
-            let result = sim.testing_destroyNextDamageableCamera(tick: UInt64(tick))
+        for index in 0..<8 {
+            sim.testing_destroyCameraAtIndex(index)
+            let result = sim.step(command: .neutral(tick: UInt64(index + 1)))
             let events = result.events.filter { $0.type == .allCamerasDestroyed }
             blackoutEvents += events.count
             if let event = events.first {
@@ -215,7 +215,9 @@ struct CameraDestructionOrderTests {
         let blackout = sim.state.networkBlackout
         let armed = sim.state.extraction.armed
         let receipt = RunReceipt(sim.state)
-        let copy = HUDLayout.cameraObjectiveCopy(destroyed: receipt.camerasDestroyed, complete: receipt.networkBlackout)
+        let receiptDestroyed = receipt.camerasDestroyed
+        let receiptBlackout = receipt.networkBlackout
+        let copy = HUDLayout.cameraObjectiveCopy(destroyed: receiptDestroyed, complete: receiptBlackout)
         #expect(blackoutEvents == 1)
         #expect(extraBlackout == 0)
         #expect(destroyedCount == 8)
@@ -223,16 +225,16 @@ struct CameraDestructionOrderTests {
         #expect(destroyed == 8)
         #expect(blackout)
         #expect(armed)
-        #expect(receipt.camerasDestroyed == 8)
-        #expect(receipt.networkBlackout)
+        #expect(receiptDestroyed == 8)
+        #expect(receiptBlackout)
         #expect(copy == HUDLayout.networkBlackoutAccolade)
     }
 
     @Test func cameraCD014ExtractAtSevenRemainsIncomplete() throws {
         var sim = try Simulation.make(seed: 1)
-        sim.testing_setCamerasIntegrity(1)
-        for tick in 1...7 {
-            _ = sim.testing_destroyNextDamageableCamera(tick: UInt64(tick))
+        for index in 0..<7 {
+            sim.testing_destroyCameraAtIndex(index)
+            _ = sim.step(command: .neutral(tick: UInt64(index + 1)))
         }
         sim.testing_completeCombatGraph()
         _ = sim.step(command: .neutral(tick: 8))
@@ -244,12 +246,14 @@ struct CameraDestructionOrderTests {
         let destroyed = sim.state.destructions.count
         let blackout = sim.state.networkBlackout
         let receipt = RunReceipt(sim.state)
-        let copy = HUDLayout.cameraObjectiveCopy(destroyed: receipt.camerasDestroyed, complete: receipt.networkBlackout)
+        let receiptDestroyed = receipt.camerasDestroyed
+        let receiptBlackout = receipt.networkBlackout
+        let copy = HUDLayout.cameraObjectiveCopy(destroyed: receiptDestroyed, complete: receiptBlackout)
         #expect(outcome == .success)
         #expect(destroyed == 7)
         #expect(!blackout)
-        #expect(receipt.camerasDestroyed == 7)
-        #expect(!receipt.networkBlackout)
+        #expect(receiptDestroyed == 7)
+        #expect(!receiptBlackout)
         #expect(copy == "CAM 7/8")
     }
 }
