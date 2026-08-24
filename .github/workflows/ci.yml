@@ -1,0 +1,16 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  swift:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify pinned specification
+        run: grep -q "39b04bb00ca5d3799513efed4e7970ec42975c96" SPEC_BASELINE.md
+      - name: Test deterministic core
+        run: swift test
