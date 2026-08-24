@@ -35,6 +35,13 @@ public struct PresentationSnapshot: Equatable, Sendable {
     public var upgrade: UpgradeID?
     public var upgradePending: Bool
     public var tutorialCopy: String?
+    public var camera: PresentationCamera
+    public var handedness: Handedness
+    public var extractionSeconds: Int
+    public var queryMarkers: [CircleSprite]
+    public var captainField: CameraSprite?
+    public var spawnSockets: [VecI]
+    public var debugSolids: [AABB]
 
     public init(_ state: WorldState) {
         tick = state.tick
@@ -77,11 +84,48 @@ public struct PresentationSnapshot: Equatable, Sendable {
         camerasDestroyed = state.destructions.count
         upgrade = state.upgrade.selected
         upgradePending = state.upgrade.pending
-        tutorialCopy = nil
+        tutorialCopy = state.tutorial.copy.isEmpty ? nil : state.tutorial.copy
+        camera = PresentationCamera.follow(
+            player: VecI(x: state.player.position.x.unitsTruncated, y: state.player.position.y.unitsTruncated),
+            heading: state.player.facing,
+            bounds: state.arena.boundsUnits
+        )
+        handedness = state.handedness
+        extractionSeconds = HUDLayout.extractionSeconds(state.extraction.remaining)
+        queryMarkers = state.enemies.flatMap { enemy -> [CircleSprite] in
+            guard enemy.archetype == .improperSearchDaemon,
+                  enemy.state == .queryTelegraph || enemy.state == .queryResolve
+            else { return [] }
+            return enemy.queryMarkers.map { center in
+                CircleSprite(
+                    id: enemy.id,
+                    x: center.x.unitsTruncated,
+                    y: center.y.unitsTruncated,
+                    radius: DaemonQuery.circleRadius,
+                    role: "daemonQuery"
+                )
+            }
+        }
+        if let emitter = state.bossRuntime?.activeEmitter, (state.bossRuntime?.fieldRemaining ?? 0) > 0 {
+            captainField = CameraSprite(
+                id: EntityID(0),
+                x: emitter.x,
+                y: emitter.y,
+                headingMilli: emitter.headingMilliDegrees,
+                range: emitter.rangeUnits,
+                fieldAngleMilli: emitter.fieldAngleMilliDegrees,
+                integrity: 1,
+                detecting: true
+            )
+        } else {
+            captainField = nil
+        }
+        spawnSockets = state.arena.enemySpawnSockets.values.flatMap { sockets in
+            sockets.map { VecI(x: $0.x, y: $0.y) }
+        } + [
+            VecI(x: state.arena.eliteSpawn.x, y: state.arena.eliteSpawn.y),
+            VecI(x: state.arena.bossSpawn.x, y: state.arena.bossSpawn.y)
+        ]
+        debugSolids = solids
     }
-}
-
-public enum HUDLayout {
-    public static let referenceWidth = 844
-    public static let referenceHeight = 390
 }

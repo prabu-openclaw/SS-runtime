@@ -7,6 +7,7 @@ final class GameSession {
     var moveX: Int16 = 0
     var moveY: Int16 = 0
     var dodgePressed = false
+    var pendingUpgradeChoice: UInt8?
 
     init(seed: UInt64 = 1) {
         simulation = try! Simulation.make(seed: seed)
@@ -41,8 +42,6 @@ final class GameSession {
         )
     }
 
-    var pendingUpgradeChoice: UInt8?
-
     var snapshot: PresentationSnapshot {
         PresentationSnapshot(simulation.state)
     }
@@ -50,16 +49,21 @@ final class GameSession {
 
 final class GameScene: SKScene {
     private let session = GameSession()
-    private var worldNode = SKNode()
+    private let worldNode = SKNode()
+    private let cameraNode = SKCameraNode()
+    private let hudNode = SKNode()
     private var stickOrigin: CGPoint?
 
     override func didMove(to view: SKView) {
         backgroundColor = .init(red: 0.055, green: 0.075, blue: 0.10, alpha: 1)
         view.preferredFramesPerSecond = 60
         view.ignoresSiblingOrder = true
-        size = CGSize(width: 2304, height: 1536)
+        size = CGSize(width: CGFloat(PresentationCamera.visibleWidth), height: CGFloat(PresentationCamera.visibleHeight))
         scaleMode = .aspectFit
         addChild(worldNode)
+        addChild(cameraNode)
+        camera = cameraNode
+        cameraNode.addChild(hudNode)
         redraw()
     }
 
@@ -71,6 +75,12 @@ final class GameScene: SKScene {
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard let touch = touches.first else { return }
         stickOrigin = touch.location(in: self)
+        let local = touch.location(in: hudNode)
+        if session.snapshot.upgradePending {
+            if local.x < 0 { session.pendingUpgradeChoice = 0 }
+            else if local.x < 80 { session.pendingUpgradeChoice = 1 }
+            else { session.pendingUpgradeChoice = 2 }
+        }
     }
 
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
@@ -102,7 +112,10 @@ final class GameScene: SKScene {
 
     private func redraw() {
         worldNode.removeAllChildren()
+        hudNode.removeAllChildren()
         let snap = session.snapshot
+        cameraNode.position = CGPoint(x: snap.camera.center.x, y: snap.camera.center.y)
+
         for solid in snap.solids {
             let node = SKShapeNode(rectOf: CGSize(width: CGFloat(solid.halfSize.x * 2), height: CGFloat(solid.halfSize.y * 2)))
             node.position = CGPoint(x: solid.center.x, y: solid.center.y)
@@ -120,7 +133,7 @@ final class GameScene: SKScene {
             if camera.integrity > 0 {
                 let path = CGMutablePath()
                 path.move(to: .zero)
-                let half = CGFloat(camera.fieldAngleMilli) / 2000
+                let half = CGFloat(camera.fieldAngleMilli) / 2000 * .pi / 180
                 let heading = CGFloat(camera.headingMilli) / 1000 * .pi / 180
                 path.addArc(center: .zero, radius: CGFloat(camera.range), startAngle: -heading - half, endAngle: -heading + half, clockwise: false)
                 path.closeSubpath()
@@ -137,21 +150,7 @@ final class GameScene: SKScene {
         extract.strokeColor = SKColor(white: 0.7, alpha: 0.6)
         worldNode.addChild(extract)
 
-        let hud = SKLabelNode(text: "TICK \(snap.tick)  HP \(snap.playerIntegrity)  EXP \(snap.exposure) \(snap.detection.rawValue.uppercased())  CAM \(snap.camerasDestroyed)/8")
-        hud.fontName = "Menlo-Bold"
-        hud.fontSize = 28
-        hud.fontColor = SKColor(white: 0.9, alpha: 1)
-        hud.horizontalAlignmentMode = .left
-        hud.position = CGPoint(x: 24, y: 1480)
-        worldNode.addChild(hud)
-        if snap.upgradePending {
-            let upgrade = SKLabelNode(text: "CHOOSE ONE COUNTERMEASURE")
-            upgrade.fontName = "Menlo-Bold"
-            upgrade.fontSize = 32
-            upgrade.fontColor = SKColor(white: 0.95, alpha: 1)
-            upgrade.position = CGPoint(x: 1152, y: 768)
-            worldNode.addChild(upgrade)
-        }
+        let player = SKShapeNode(circleOfRadius: CGFloat(snap.player.radius))
         player.position = CGPoint(x: snap.player.x, y: snap.player.y)
         player.fillColor = SKColor(white: 0.92, alpha: 1)
         player.strokeColor = .clear
@@ -162,6 +161,77 @@ final class GameScene: SKScene {
             node.fillColor = SKColor(white: 0.55, alpha: 1)
             node.strokeColor = .clear
             worldNode.addChild(node)
+        }
+        for marker in snap.queryMarkers {
+            let ring = SKShapeNode(circleOfRadius: CGFloat(marker.radius))
+            ring.position = CGPoint(x: marker.x, y: marker.y)
+            ring.fillColor = .clear
+            ring.strokeColor = SKColor(white: 0.8, alpha: 0.7)
+            ring.lineWidth = 2
+            worldNode.addChild(ring)
+        }
+        if let field = snap.captainField {
+            let path = CGMutablePath()
+            path.move(to: .zero)
+            let half = CGFloat(field.fieldAngleMilli) / 2000 * .pi / 180
+            let heading = CGFloat(field.headingMilli) / 1000 * .pi / 180
+            path.addArc(center: .zero, radius: CGFloat(field.range), startAngle: -heading - half, endAngle: -heading + half, clockwise: false)
+            path.closeSubpath()
+            let node = SKShapeNode(path: path)
+            node.position = CGPoint(x: field.x, y: field.y)
+            node.fillColor = SKColor(white: 0.75, alpha: 0.18)
+            node.strokeColor = .clear
+            worldNode.addChild(node)
+        }
+        for socket in snap.spawnSockets {
+            let dot = SKShapeNode(circleOfRadius: 3)
+            dot.position = CGPoint(x: socket.x, y: socket.y)
+            dot.fillColor = SKColor(white: 0.45, alpha: 0.5)
+            dot.strokeColor = .clear
+            worldNode.addChild(dot)
+        }
+        drawHUD(snap)
+    }
+
+    private func drawHUD(_ snap: PresentationSnapshot) {
+        func bar(_ rect: HUDRect, color: SKColor) {
+            let node = SKShapeNode(rectOf: CGSize(width: CGFloat(rect.width), height: CGFloat(rect.height)))
+            node.fillColor = color
+            node.strokeColor = SKColor(white: 0.8, alpha: 0.5)
+            node.position = CGPoint(
+                x: CGFloat(rect.x) - CGFloat(HUDLayout.referenceWidth) / 2,
+                y: CGFloat(HUDLayout.referenceHeight) / 2 - CGFloat(rect.y)
+            )
+            hudNode.addChild(node)
+        }
+        bar(HUDLayout.playerIntegrity(), color: SKColor(white: 0.85, alpha: 0.8))
+        bar(HUDLayout.exposureBar(), color: SKColor(white: 0.55, alpha: 0.8))
+        bar(HUDLayout.stick(handedness: snap.handedness), color: SKColor(white: 0.4, alpha: 0.35))
+        bar(HUDLayout.dodge(handedness: snap.handedness), color: SKColor(white: 0.5, alpha: 0.35))
+        bar(HUDLayout.pause(), color: SKColor(white: 0.6, alpha: 0.4))
+
+        let hud = SKLabelNode(text: "HP \(snap.playerIntegrity)  EXP \(snap.exposure) \(snap.detection.rawValue.uppercased())  CAM \(snap.camerasDestroyed)/8")
+        hud.fontName = "Menlo-Bold"
+        hud.fontSize = 10
+        hud.fontColor = SKColor(white: 0.95, alpha: 1)
+        hud.position = CGPoint(x: 0, y: CGFloat(HUDLayout.referenceHeight) / 2 - 20)
+        hudNode.addChild(hud)
+
+        if let copy = snap.tutorialCopy {
+            let tutorial = SKLabelNode(text: copy)
+            tutorial.fontName = "Menlo-Bold"
+            tutorial.fontSize = 12
+            tutorial.fontColor = SKColor(white: 0.95, alpha: 1)
+            tutorial.position = CGPoint(x: 0, y: -CGFloat(HUDLayout.referenceHeight) / 2 + 40)
+            hudNode.addChild(tutorial)
+        }
+        if snap.extractionArmed {
+            let ring = SKLabelNode(text: "\(snap.extractionSeconds)")
+            ring.fontName = "Menlo-Bold"
+            ring.fontSize = 18
+            ring.fontColor = SKColor(white: 0.9, alpha: 1)
+            ring.position = CGPoint(x: 0, y: 40)
+            hudNode.addChild(ring)
         }
     }
 }

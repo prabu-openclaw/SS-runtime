@@ -53,4 +53,38 @@ public enum IntMath {
         let asSigned = Int64(bitPattern: rounded)
         return sign < 0 ? 0 &- asSigned : asSigned
     }
+
+    /// `b² − 4ac` for integer quadratics. Returns nil when negative.
+    public static func quadraticDiscriminant(a: Int64, b: Int64, c: Int64) -> Int64? {
+        let b2 = UInt64(abs(b)).multipliedFullWidth(by: UInt64(abs(b)))
+        let acNegative = (a < 0) != (c < 0)
+        let ac = UInt64(abs(a)).multipliedFullWidth(by: UInt64(abs(c)))
+        let fourACOverflow = ac.high >> 62 != 0
+        let fourAC = (
+            high: (ac.high &<< 2) | (ac.low &>> 62),
+            low: ac.low &<< 2
+        )
+
+        if acNegative {
+            if fourACOverflow { return Int64.max }
+            let sumLow = b2.low &+ fourAC.low
+            let carry: UInt64 = sumLow < b2.low ? 1 : 0
+            let sumHigh = b2.high &+ fourAC.high &+ carry
+            return fitNonNegative(high: sumHigh, low: sumLow)
+        }
+
+        if fourACOverflow { return nil }
+        if b2.high < fourAC.high || (b2.high == fourAC.high && b2.low < fourAC.low) {
+            return nil
+        }
+        let borrow: UInt64 = b2.low < fourAC.low ? 1 : 0
+        let diffLow = b2.low &- fourAC.low
+        let diffHigh = b2.high &- fourAC.high &- borrow
+        return fitNonNegative(high: diffHigh, low: diffLow)
+    }
+
+    private static func fitNonNegative(high: UInt64, low: UInt64) -> Int64 {
+        if high != 0 || low > UInt64(Int64.max) { return Int64.max }
+        return Int64(bitPattern: low)
+    }
 }

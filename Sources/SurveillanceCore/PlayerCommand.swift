@@ -15,7 +15,6 @@ public struct PlayerCommand: Equatable, Sendable {
         dodgePressed: Bool,
         upgradeChoiceIndex: UInt8? = nil
     ) {
-        precondition(upgradeChoiceIndex.map { $0 <= 2 } ?? true, "Upgrade index must be 0...2")
         self.tick = tick
         self.moveX = moveX
         self.moveY = moveY

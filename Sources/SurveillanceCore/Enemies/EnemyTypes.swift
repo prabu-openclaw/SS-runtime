@@ -30,7 +30,30 @@ public struct EnemyBody: Equatable, Sendable {
     public var nextSpecialTick: UInt64
     public var lockPosition: VecQ8?
     public var encounterId: String
+    public var queryMarkers: [VecQ8] = []
     public var alive: Bool { integrity > 0 }
+}
+
+public enum DaemonQuery {
+    public static let circleRadius = 56
+    public static let lateralOffset = 96
+    public static let resolveDamage = 14
+
+    public static func markers(playerPosition: VecQ8, facing: VecQ8) -> [VecQ8] {
+        let dir = facing == .zero ? VecQ8(unitsX: 1, unitsY: 0) : facing
+        let perp = dir.clockwisePerpendicular
+        return [
+            playerPosition,
+            playerPosition.offset(units: lateralOffset, along: perp),
+            playerPosition.offset(units: -lateralOffset, along: perp)
+        ]
+    }
+
+    public static func damage(playerPosition: VecQ8, markers: [VecQ8]) -> Int {
+        markers.reduce(0) { total, center in
+            total + (center.contains(playerPosition, radiusUnits: circleRadius) ? resolveDamage : 0)
+        }
+    }
 }
 
 public struct MineBody: Equatable, Sendable {

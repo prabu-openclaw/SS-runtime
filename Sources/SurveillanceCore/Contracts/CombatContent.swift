@@ -23,11 +23,12 @@ public enum UpgradeID: String, Equatable, Sendable, CaseIterable {
         }
     }
 
-    public static func from(index: UInt8) -> UpgradeID {
+    public static func from(index: UInt8) -> UpgradeID? {
         switch index {
         case 0: .signalJammer
         case 1: .ricochetPulse
-        default: .ghostStep
+        case 2: .ghostStep
+        default: nil
         }
     }
 }
