@@ -21,6 +21,7 @@ let package = Package(
             dependencies: ["SurveillanceCore"],
             exclude: [
                 "AssetIntakeTests.swift",
+                "AudioProjectorTests.swift",
                 "ArenaReachabilityTests.swift"
             ]
         )
