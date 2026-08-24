@@ -224,8 +224,9 @@ final class GameScene: SKScene {
     }
 
     private func drawHUD(_ snap: PresentationSnapshot) {
-        func bar(_ rect: HUDRect, color: SKColor) {
+        func bar(_ rect: HUDRect, assetId: String, color: SKColor) {
             let node = SKShapeNode(rectOf: CGSize(width: CGFloat(rect.width), height: CGFloat(rect.height)))
+            node.name = assetId
             node.fillColor = color
             node.strokeColor = SKColor(white: 0.8, alpha: 0.5)
             node.position = CGPoint(
@@ -234,11 +235,11 @@ final class GameScene: SKScene {
             )
             hudNode.addChild(node)
         }
-        bar(HUDLayout.playerIntegrity(), color: SKColor(white: 0.85, alpha: 0.8))
-        bar(HUDLayout.exposureBar(), color: SKColor(white: 0.55, alpha: 0.8))
-        bar(HUDLayout.stick(handedness: snap.handedness), color: SKColor(white: 0.4, alpha: 0.35))
-        bar(HUDLayout.dodge(handedness: snap.handedness), color: SKColor(white: 0.5, alpha: 0.35))
-        bar(HUDLayout.pause(), color: SKColor(white: 0.6, alpha: 0.4))
+        bar(HUDLayout.playerIntegrity(), assetId: RuntimeAssetRegistry.HUD.integrityFrame, color: SKColor(white: 0.85, alpha: 0.8))
+        bar(HUDLayout.exposureBar(), assetId: RuntimeAssetRegistry.HUD.exposureBar, color: SKColor(white: 0.55, alpha: 0.8))
+        bar(HUDLayout.stick(handedness: snap.handedness), assetId: RuntimeAssetRegistry.HUD.stickBase, color: SKColor(white: 0.4, alpha: 0.35))
+        bar(HUDLayout.dodge(handedness: snap.handedness), assetId: RuntimeAssetRegistry.HUD.dodge, color: SKColor(white: 0.5, alpha: 0.35))
+        bar(HUDLayout.pause(), assetId: RuntimeAssetRegistry.HUD.pause, color: SKColor(white: 0.6, alpha: 0.4))
 
         var hudText = "HP \(snap.playerIntegrity)  EXP \(snap.exposure) \(snap.detection.rawValue.uppercased())"
         hudText += "  \(snap.combatObjectiveCopy)"
@@ -269,11 +270,44 @@ final class GameScene: SKScene {
         }
         if snap.extractionArmed {
             let ring = SKLabelNode(text: "\(snap.extractionSeconds)")
+            ring.name = RuntimeAssetRegistry.HUD.extractionRing
             ring.fontName = "Menlo-Bold"
             ring.fontSize = 18
             ring.fontColor = SKColor(white: 0.9, alpha: 1)
             ring.position = CGPoint(x: 0, y: 40)
             hudNode.addChild(ring)
+        }
+        if snap.upgradePending {
+            drawUpgradeSelection()
+        }
+    }
+
+    private func drawUpgradeSelection() {
+        let cards = UpgradePresentation.selectionCards()
+        let startX = -CGFloat(HUDLayout.referenceWidth) / 2 + 40
+        for (index, card) in cards.enumerated() {
+            let x = startX + CGFloat(index) * 120
+            let backdrop = SKShapeNode(rectOf: CGSize(width: 110, height: 72), cornerRadius: 8)
+            backdrop.name = "upgrade_card_\(card.upgrade.rawValue)"
+            backdrop.fillColor = SKColor(white: 0.2, alpha: 0.85)
+            backdrop.strokeColor = SKColor(white: 0.7, alpha: 0.8)
+            backdrop.position = CGPoint(x: x, y: -CGFloat(HUDLayout.referenceHeight) / 2 + 96)
+            backdrop.accessibilityLabel = card.voiceOverLabel
+            hudNode.addChild(backdrop)
+
+            let title = SKLabelNode(text: card.name)
+            title.fontName = "Menlo-Bold"
+            title.fontSize = 10
+            title.fontColor = SKColor(white: 0.95, alpha: 1)
+            title.position = CGPoint(x: x, y: backdrop.position.y + 16)
+            hudNode.addChild(title)
+
+            let summary = SKLabelNode(text: card.role)
+            summary.fontName = "Menlo"
+            summary.fontSize = 8
+            summary.fontColor = SKColor(white: 0.8, alpha: 1)
+            summary.position = CGPoint(x: x, y: backdrop.position.y - 4)
+            hudNode.addChild(summary)
         }
     }
 

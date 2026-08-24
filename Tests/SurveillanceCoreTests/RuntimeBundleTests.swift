@@ -54,4 +54,27 @@ struct RuntimeBundleTests {
         #expect(try CivicSeamIdentity.catalogPassesContentAudit(catalog))
         #expect(try CivicSeamIdentity.catalogContentAudit(catalog).isEmpty)
     }
+
+    @Test func presentationAssetRegistryT801MatchesBundleProjection() throws {
+        let catalog = try AssetCatalog.bundled()
+        let reachable = try RuntimeBundleFilter.reachableAssetIds()
+        let projection = RuntimeBundleFilter.project(catalog: catalog, reachable: reachable)
+        let registry = try PresentationAssetRegistry.bundled()
+        #expect(registry.bundleAssetIds == projection.bundleAssetIds)
+        #expect(registry.requiredVisualAssetIds.count == 28)
+        #expect(registry.audioEventIds.count == 24)
+        #expect(registry.contains("hud_exposure_bar"))
+        #expect(registry.contains("legacy_san_francisco_decal_cable_groove_01") == false)
+        #expect(try registry.require("control_dodge") == "control_dodge")
+    }
+
+    @Test func presentationAssetRegistryT801RejectsUnreachableAsset() throws {
+        let registry = try PresentationAssetRegistry.bundled()
+        do {
+            _ = try registry.require("legacy_atlanta_decal_beltline_stripe_01")
+            Issue.record("expected unreachable asset failure")
+        } catch PresentationAssetRegistryError.unreachable(let id) {
+            #expect(id == "legacy_atlanta_decal_beltline_stripe_01")
+        }
+    }
 }
