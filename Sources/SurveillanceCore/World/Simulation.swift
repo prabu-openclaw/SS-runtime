@@ -576,26 +576,14 @@ public struct Simulation: Equatable, Sendable {
     }
 
     private mutating func spawnRicochet(from source: ProjectileBody, origin: VecQ8, excluding: EntityID, tick: UInt64) {
-        struct Candidate { var id: EntityID; var distSq: Int64; var anchor: VecQ8 }
-        var list: [Candidate] = []
-        let range = Int64(Targeting.ricochetRange) * Q8.scale
-        for enemy in state.enemies where enemy.alive && enemy.id != excluding {
-            let distSq = origin.distanceSquared(to: enemy.position)
-            if distSq <= range * range, Collision.lineOfFireClear(from: origin, to: enemy.position, solids: state.liveSolids) {
-                list.append(Candidate(id: enemy.id, distSq: distSq, anchor: enemy.position))
-            }
-        }
-        for camera in state.cameras where camera.isDamageable && camera.entityId != excluding {
-            let distSq = origin.distanceSquared(to: camera.targetAnchor)
-            if distSq <= range * range, Collision.lineOfFireClear(from: origin, to: camera.targetAnchor, solids: state.liveSolids) {
-                list.append(Candidate(id: camera.entityId, distSq: distSq, anchor: camera.targetAnchor))
-            }
-        }
-        list.sort {
-            if $0.distSq != $1.distSq { return $0.distSq < $1.distSq }
-            return $0.id < $1.id
-        }
-        guard let next = list.first else {
+        let solids = state.liveSolids
+        guard let next = Targeting.ricochetTarget(
+            origin: origin,
+            excluding: excluding,
+            enemies: state.enemies,
+            cameras: state.cameras,
+            solids: solids
+        ) else {
             if let index = state.projectiles.firstIndex(where: { $0.id == source.id }) {
                 retireProjectile(at: index)
             }
@@ -605,12 +593,13 @@ public struct Simulation: Equatable, Sendable {
         if !hitEntityIds.contains(excluding) {
             hitEntityIds.append(excluding)
         }
-        let velocity = Targeting.direct(from: origin, to: next.anchor, speed: Int64(Targeting.projectileSpeedPerTick) * Q8.scale)
+        let range = Int64(Targeting.ricochetRange) * Q8.scale
+        let velocity = Targeting.direct(from: origin, to: next.1, speed: Int64(Targeting.projectileSpeedPerTick) * Q8.scale)
         let ricochet = ProjectileBody(
             id: source.id,
             ownerId: source.ownerId,
             kind: .ricochet,
-            position: next.anchor,
+            position: next.1,
             previous: origin,
             velocity: velocity,
             radius: source.radius,
@@ -1240,6 +1229,28 @@ public struct Simulation: Equatable, Sendable {
         for i in state.cameras.indices {
             state.cameras[i].integrity = i == index ? integrity : 0
         }
+    }
+
+    mutating func testing_injectHostileBolt(kind: ProjectileKind = .sutroBolt, damage: Int = 10) {
+        let pos = state.player.position
+        let projectile = ProjectileBody(
+            id: state.allocator.next(),
+            ownerId: EntityID(0),
+            kind: kind,
+            position: pos,
+            previous: pos,
+            velocity: .zero,
+            radius: 6,
+            damage: damage,
+            cameraDamage: 0,
+            age: 2,
+            lifetime: 90,
+            distanceTravelledQ8: 0,
+            maxTravelQ8: Int64(10_000) * Q8.scale,
+            hitEntityIds: [],
+            alive: true
+        )
+        state.projectiles.append(projectile)
     }
 
     mutating func testing_injectPulseHitting(camera: SelectedCamera) {
