@@ -28,8 +28,6 @@ public enum PNGHeader {
 }
 
 public enum AssetIntake {
-    public static let deliveryNamePattern = /^[a-z0-9]+(?:_[a-z0-9]+)+@[1-9][0-9]*x\.png$/
-
     public static func validate(catalog: AssetCatalog, evidenceRoot: URL) throws -> [AssetIntakeIssue] {
         var issues: [AssetIntakeIssue] = []
         var hashes: [String: String] = [:]
@@ -45,7 +43,9 @@ public enum AssetIntake {
                     issues.append(.acceptedWithoutFile(record.assetId))
                     continue
                 }
-                if runtimePath.hasSuffix(".png"), runtimePath.wholeMatch(of: deliveryNamePattern) == nil {
+                if runtimePath.hasSuffix(".png"),
+                   runtimePath.wholeMatch(of: /^[a-z0-9]+(?:_[a-z0-9]+)+@[1-9][0-9]*x\.png$/) == nil
+                {
                     issues.append(.invalidDeliveryName(record.assetId))
                 }
             }
