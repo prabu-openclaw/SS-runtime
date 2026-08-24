@@ -1,0 +1,1226 @@
+{
+  "schemaVersion": "clip-metadata-001",
+  "animationVersion": "animation-civic-seam-001",
+  "clips": [
+    {
+      "clipId": "player_idle",
+      "actorRole": "player",
+      "state": "idle",
+      "directions": [
+        "n",
+        "e",
+        "s",
+        "w"
+      ],
+      "frameIds": [
+        "actor_player_idle_n_01",
+        "actor_player_idle_n_02",
+        "actor_player_idle_n_03",
+        "actor_player_idle_n_04",
+        "actor_player_idle_e_01",
+        "actor_player_idle_e_02",
+        "actor_player_idle_e_03",
+        "actor_player_idle_e_04",
+        "actor_player_idle_s_01",
+        "actor_player_idle_s_02",
+        "actor_player_idle_s_03",
+        "actor_player_idle_s_04",
+        "actor_player_idle_w_01",
+        "actor_player_idle_w_02",
+        "actor_player_idle_w_03",
+        "actor_player_idle_w_04"
+      ],
+      "framesPerSecond": 6,
+      "loop": true,
+      "anchor": {
+        "x": 32,
+        "y": 56
+      },
+      "authoritativeEventMarker": "none",
+      "cancelWindows": [
+        "hurt",
+        "defeat",
+        "dodge"
+      ],
+      "blendOrTransition": "loop",
+      "reducedMotionClip": "player_idle",
+      "audioCue": "none",
+      "vfxCue": "none"
+    },
+    {
+      "clipId": "player_move",
+      "actorRole": "player",
+      "state": "move",
+      "directions": [
+        "n",
+        "e",
+        "s",
+        "w"
+      ],
+      "frameIds": [
+        "actor_player_move_n_01",
+        "actor_player_move_n_02",
+        "actor_player_move_n_03",
+        "actor_player_move_n_04",
+        "actor_player_move_n_05",
+        "actor_player_move_n_06",
+        "actor_player_move_e_01",
+        "actor_player_move_e_02",
+        "actor_player_move_e_03",
+        "actor_player_move_e_04",
+        "actor_player_move_e_05",
+        "actor_player_move_e_06",
+        "actor_player_move_s_01",
+        "actor_player_move_s_02",
+        "actor_player_move_s_03",
+        "actor_player_move_s_04",
+        "actor_player_move_s_05",
+        "actor_player_move_s_06",
+        "actor_player_move_w_01",
+        "actor_player_move_w_02",
+        "actor_player_move_w_03",
+        "actor_player_move_w_04",
+        "actor_player_move_w_05",
+        "actor_player_move_w_06"
+      ],
+      "framesPerSecond": 12,
+      "loop": true,
+      "anchor": {
+        "x": 32,
+        "y": 56
+      },
+      "authoritativeEventMarker": "none",
+      "cancelWindows": [
+        "hurt",
+        "defeat",
+        "dodge"
+      ],
+      "blendOrTransition": "loop",
+      "reducedMotionClip": "player_move",
+      "audioCue": "none",
+      "vfxCue": "none"
+    },
+    {
+      "clipId": "player_dodge",
+      "actorRole": "player",
+      "state": "dodge",
+      "directions": [
+        "n",
+        "e",
+        "s",
+        "w"
+      ],
+      "frameIds": [
+        "actor_player_dodge_n_01",
+        "actor_player_dodge_n_02",
+        "actor_player_dodge_n_03",
+        "actor_player_dodge_n_04",
+        "actor_player_dodge_e_01",
+        "actor_player_dodge_e_02",
+        "actor_player_dodge_e_03",
+        "actor_player_dodge_e_04",
+        "actor_player_dodge_s_01",
+        "actor_player_dodge_s_02",
+        "actor_player_dodge_s_03",
+        "actor_player_dodge_s_04",
+        "actor_player_dodge_w_01",
+        "actor_player_dodge_w_02",
+        "actor_player_dodge_w_03",
+        "actor_player_dodge_w_04"
+      ],
+      "framesPerSecond": 16,
+      "loop": false,
+      "anchor": {
+        "x": 32,
+        "y": 56
+      },
+      "authoritativeEventMarker": "dodgeStarted",
+      "cancelWindows": [
+        "defeat"
+      ],
+      "blendOrTransition": "cutOnEvent",
+      "reducedMotionClip": "player_dodge",
+      "audioCue": "player_dodge",
+      "vfxCue": "none"
+    },
+    {
+      "clipId": "player_recover",
+      "actorRole": "player",
+      "state": "recover",
+      "directions": [
+        "n",
+        "e",
+        "s",
+        "w"
+      ],
+      "frameIds": [
+        "actor_player_recover_n_01",
+        "actor_player_recover_n_02",
+        "actor_player_recover_e_01",
+        "actor_player_recover_e_02",
+        "actor_player_recover_s_01",
+        "actor_player_recover_s_02",
+        "actor_player_recover_w_01",
+        "actor_player_recover_w_02"
+      ],
+      "framesPerSecond": 12,
+      "loop": false,
+      "anchor": {
+        "x": 32,
+        "y": 56
+      },
+      "authoritativeEventMarker": "none",
+      "cancelWindows": [
+        "hurt",
+        "defeat"
+      ],
+      "blendOrTransition": "returnToLocomotion",
+      "reducedMotionClip": "player_recover",
+      "audioCue": "none",
+      "vfxCue": "none"
+    },
+    {
+      "clipId": "player_hurt",
+      "actorRole": "player",
+      "state": "hurt",
+      "directions": [
+        "n",
+        "e",
+        "s",
+        "w"
+      ],
+      "frameIds": [
+        "actor_player_hurt_n_01",
+        "actor_player_hurt_n_02",
+        "actor_player_hurt_n_03",
+        "actor_player_hurt_e_01",
+        "actor_player_hurt_e_02",
+        "actor_player_hurt_e_03",
+        "actor_player_hurt_s_01",
+        "actor_player_hurt_s_02",
+        "actor_player_hurt_s_03",
+        "actor_player_hurt_w_01",
+        "actor_player_hurt_w_02",
+        "actor_player_hurt_w_03"
+      ],
+      "framesPerSecond": 20,
+      "loop": false,
+      "anchor": {
+        "x": 32,
+        "y": 56
+      },
+      "authoritativeEventMarker": "playerDamaged",
+      "cancelWindows": [
+        "defeat"
+      ],
+      "blendOrTransition": "cutOnEvent",
+      "reducedMotionClip": "player_hurt",
+      "audioCue": "player_damage",
+      "vfxCue": "none"
+    },
+    {
+      "clipId": "player_defeat",
+      "actorRole": "player",
+      "state": "defeat",
+      "directions": [
+        "n",
+        "e",
+        "s",
+        "w"
+      ],
+      "frameIds": [
+        "actor_player_defeat_n_01",
+        "actor_player_defeat_n_02",
+        "actor_player_defeat_n_03",
+        "actor_player_defeat_n_04",
+        "actor_player_defeat_n_05",
+        "actor_player_defeat_e_01",
+        "actor_player_defeat_e_02",
+        "actor_player_defeat_e_03",
+        "actor_player_defeat_e_04",
+        "actor_player_defeat_e_05",
+        "actor_player_defeat_s_01",
+        "actor_player_defeat_s_02",
+        "actor_player_defeat_s_03",
+        "actor_player_defeat_s_04",
+        "actor_player_defeat_s_05",
+        "actor_player_defeat_w_01",
+        "actor_player_defeat_w_02",
+        "actor_player_defeat_w_03",
+        "actor_player_defeat_w_04",
+        "actor_player_defeat_w_05"
+      ],
+      "framesPerSecond": 12,
+      "loop": false,
+      "anchor": {
+        "x": 32,
+        "y": 56
+      },
+      "authoritativeEventMarker": "runFailed",
+      "cancelWindows": [],
+      "blendOrTransition": "terminal",
+      "reducedMotionClip": "player_defeat",
+      "audioCue": "player_death",
+      "vfxCue": "none"
+    },
+    {
+      "clipId": "player_extraction",
+      "actorRole": "player",
+      "state": "extraction",
+      "directions": [
+        "n",
+        "e",
+        "s",
+        "w"
+      ],
+      "frameIds": [
+        "actor_player_extraction_n_01",
+        "actor_player_extraction_n_02",
+        "actor_player_extraction_n_03",
+        "actor_player_extraction_n_04",
+        "actor_player_extraction_n_05",
+        "actor_player_extraction_n_06",
+        "actor_player_extraction_n_07",
+        "actor_player_extraction_n_08",
+        "actor_player_extraction_e_01",
+        "actor_player_extraction_e_02",
+        "actor_player_extraction_e_03",
+        "actor_player_extraction_e_04",
+        "actor_player_extraction_e_05",
+        "actor_player_extraction_e_06",
+        "actor_player_extraction_e_07",
+        "actor_player_extraction_e_08",
+        "actor_player_extraction_s_01",
+        "actor_player_extraction_s_02",
+        "actor_player_extraction_s_03",
+        "actor_player_extraction_s_04",
+        "actor_player_extraction_s_05",
+        "actor_player_extraction_s_06",
+        "actor_player_extraction_s_07",
+        "actor_player_extraction_s_08",
+        "actor_player_extraction_w_01",
+        "actor_player_extraction_w_02",
+        "actor_player_extraction_w_03",
+        "actor_player_extraction_w_04",
+        "actor_player_extraction_w_05",
+        "actor_player_extraction_w_06",
+        "actor_player_extraction_w_07",
+        "actor_player_extraction_w_08"
+      ],
+      "framesPerSecond": 12,
+      "loop": false,
+      "anchor": {
+        "x": 32,
+        "y": 56
+      },
+      "authoritativeEventMarker": "extractionCountdownChanged",
+      "cancelWindows": [
+        "defeat"
+      ],
+      "blendOrTransition": "countdownAligned",
+      "reducedMotionClip": "player_extraction",
+      "audioCue": "extraction_tick",
+      "vfxCue": "none"
+    },
+    {
+      "clipId": "player_complete",
+      "actorRole": "player",
+      "state": "complete",
+      "directions": [
+        "n",
+        "e",
+        "s",
+        "w"
+      ],
+      "frameIds": [
+        "actor_player_complete_n_01",
+        "actor_player_complete_n_02",
+        "actor_player_complete_n_03",
+        "actor_player_complete_n_04",
+        "actor_player_complete_e_01",
+        "actor_player_complete_e_02",
+        "actor_player_complete_e_03",
+        "actor_player_complete_e_04",
+        "actor_player_complete_s_01",
+        "actor_player_complete_s_02",
+        "actor_player_complete_s_03",
+        "actor_player_complete_s_04",
+        "actor_player_complete_w_01",
+        "actor_player_complete_w_02",
+        "actor_player_complete_w_03",
+        "actor_player_complete_w_04"
+      ],
+      "framesPerSecond": 8,
+      "loop": false,
+      "anchor": {
+        "x": 32,
+        "y": 56
+      },
+      "authoritativeEventMarker": "runSucceeded",
+      "cancelWindows": [],
+      "blendOrTransition": "terminal",
+      "reducedMotionClip": "player_complete",
+      "audioCue": "run_success",
+      "vfxCue": "none"
+    },
+    {
+      "clipId": "fogAnalyticsCloud_anticipate",
+      "actorRole": "fogAnalyticsCloud",
+      "state": "pulse",
+      "directions": [
+        "n",
+        "e",
+        "s",
+        "w"
+      ],
+      "frameIds": [
+        "actor_fogAnalyticsCloud_pulse_n_01",
+        "actor_fogAnalyticsCloud_pulse_n_02",
+        "actor_fogAnalyticsCloud_pulse_n_03",
+        "actor_fogAnalyticsCloud_pulse_e_01",
+        "actor_fogAnalyticsCloud_pulse_e_02",
+        "actor_fogAnalyticsCloud_pulse_e_03",
+        "actor_fogAnalyticsCloud_pulse_s_01",
+        "actor_fogAnalyticsCloud_pulse_s_02",
+        "actor_fogAnalyticsCloud_pulse_s_03",
+        "actor_fogAnalyticsCloud_pulse_w_01",
+        "actor_fogAnalyticsCloud_pulse_w_02",
+        "actor_fogAnalyticsCloud_pulse_w_03"
+      ],
+      "framesPerSecond": 12,
+      "loop": false,
+      "anchor": {
+        "x": 32,
+        "y": 56
+      },
+      "authoritativeEventMarker": "none",
+      "cancelWindows": [
+        "hurt",
+        "defeat"
+      ],
+      "blendOrTransition": "telegraph",
+      "reducedMotionClip": "fogAnalyticsCloud_anticipate",
+      "audioCue": "none",
+      "vfxCue": "none"
+    },
+    {
+      "clipId": "fogAnalyticsCloud_commit",
+      "actorRole": "fogAnalyticsCloud",
+      "state": "pulseCommit",
+      "directions": [
+        "n",
+        "e",
+        "s",
+        "w"
+      ],
+      "frameIds": [
+        "actor_fogAnalyticsCloud_pulseCommit_n_01",
+        "actor_fogAnalyticsCloud_pulseCommit_n_02",
+        "actor_fogAnalyticsCloud_pulseCommit_e_01",
+        "actor_fogAnalyticsCloud_pulseCommit_e_02",
+        "actor_fogAnalyticsCloud_pulseCommit_s_01",
+        "actor_fogAnalyticsCloud_pulseCommit_s_02",
+        "actor_fogAnalyticsCloud_pulseCommit_w_01",
+        "actor_fogAnalyticsCloud_pulseCommit_w_02"
+      ],
+      "framesPerSecond": 12,
+      "loop": false,
+      "anchor": {
+        "x": 32,
+        "y": 56
+      },
+      "authoritativeEventMarker": "exposureChanged",
+      "cancelWindows": [
+        "hurt",
+        "defeat"
+      ],
+      "blendOrTransition": "cutOnEvent",
+      "reducedMotionClip": "fogAnalyticsCloud_commit",
+      "audioCue": "none",
+      "vfxCue": "none"
+    },
+    {
+      "clipId": "cableCarCorrelator_anticipate",
+      "actorRole": "cableCarCorrelator",
+      "state": "charge",
+      "directions": [
+        "n",
+        "e",
+        "s",
+        "w"
+      ],
+      "frameIds": [
+        "actor_cableCarCorrelator_charge_n_01",
+        "actor_cableCarCorrelator_charge_n_02",
+        "actor_cableCarCorrelator_charge_n_03",
+        "actor_cableCarCorrelator_charge_e_01",
+        "actor_cableCarCorrelator_charge_e_02",
+        "actor_cableCarCorrelator_charge_e_03",
+        "actor_cableCarCorrelator_charge_s_01",
+        "actor_cableCarCorrelator_charge_s_02",
+        "actor_cableCarCorrelator_charge_s_03",
+        "actor_cableCarCorrelator_charge_w_01",
+        "actor_cableCarCorrelator_charge_w_02",
+        "actor_cableCarCorrelator_charge_w_03"
+      ],
+      "framesPerSecond": 12,
+      "loop": false,
+      "anchor": {
+        "x": 32,
+        "y": 56
+      },
+      "authoritativeEventMarker": "none",
+      "cancelWindows": [
+        "hurt",
+        "defeat"
+      ],
+      "blendOrTransition": "telegraph",
+      "reducedMotionClip": "cableCarCorrelator_anticipate",
+      "audioCue": "none",
+      "vfxCue": "none"
+    },
+    {
+      "clipId": "cableCarCorrelator_commit",
+      "actorRole": "cableCarCorrelator",
+      "state": "chargeCommit",
+      "directions": [
+        "n",
+        "e",
+        "s",
+        "w"
+      ],
+      "frameIds": [
+        "actor_cableCarCorrelator_chargeCommit_n_01",
+        "actor_cableCarCorrelator_chargeCommit_n_02",
+        "actor_cableCarCorrelator_chargeCommit_e_01",
+        "actor_cableCarCorrelator_chargeCommit_e_02",
+        "actor_cableCarCorrelator_chargeCommit_s_01",
+        "actor_cableCarCorrelator_chargeCommit_s_02",
+        "actor_cableCarCorrelator_chargeCommit_w_01",
+        "actor_cableCarCorrelator_chargeCommit_w_02"
+      ],
+      "framesPerSecond": 12,
+      "loop": false,
+      "anchor": {
+        "x": 32,
+        "y": 56
+      },
+      "authoritativeEventMarker": "playerDamaged",
+      "cancelWindows": [
+        "hurt",
+        "defeat"
+      ],
+      "blendOrTransition": "cutOnEvent",
+      "reducedMotionClip": "cableCarCorrelator_commit",
+      "audioCue": "none",
+      "vfxCue": "none"
+    },
+    {
+      "clipId": "sutroSignalWitch_anticipate",
+      "actorRole": "sutroSignalWitch",
+      "state": "cast",
+      "directions": [
+        "n",
+        "e",
+        "s",
+        "w"
+      ],
+      "frameIds": [
+        "actor_sutroSignalWitch_cast_n_01",
+        "actor_sutroSignalWitch_cast_n_02",
+        "actor_sutroSignalWitch_cast_n_03",
+        "actor_sutroSignalWitch_cast_e_01",
+        "actor_sutroSignalWitch_cast_e_02",
+        "actor_sutroSignalWitch_cast_e_03",
+        "actor_sutroSignalWitch_cast_s_01",
+        "actor_sutroSignalWitch_cast_s_02",
+        "actor_sutroSignalWitch_cast_s_03",
+        "actor_sutroSignalWitch_cast_w_01",
+        "actor_sutroSignalWitch_cast_w_02",
+        "actor_sutroSignalWitch_cast_w_03"
+      ],
+      "framesPerSecond": 12,
+      "loop": false,
+      "anchor": {
+        "x": 32,
+        "y": 56
+      },
+      "authoritativeEventMarker": "none",
+      "cancelWindows": [
+        "hurt",
+        "defeat"
+      ],
+      "blendOrTransition": "telegraph",
+      "reducedMotionClip": "sutroSignalWitch_anticipate",
+      "audioCue": "none",
+      "vfxCue": "none"
+    },
+    {
+      "clipId": "sutroSignalWitch_commit",
+      "actorRole": "sutroSignalWitch",
+      "state": "castCommit",
+      "directions": [
+        "n",
+        "e",
+        "s",
+        "w"
+      ],
+      "frameIds": [
+        "actor_sutroSignalWitch_castCommit_n_01",
+        "actor_sutroSignalWitch_castCommit_n_02",
+        "actor_sutroSignalWitch_castCommit_e_01",
+        "actor_sutroSignalWitch_castCommit_e_02",
+        "actor_sutroSignalWitch_castCommit_s_01",
+        "actor_sutroSignalWitch_castCommit_s_02",
+        "actor_sutroSignalWitch_castCommit_w_01",
+        "actor_sutroSignalWitch_castCommit_w_02"
+      ],
+      "framesPerSecond": 12,
+      "loop": false,
+      "anchor": {
+        "x": 32,
+        "y": 56
+      },
+      "authoritativeEventMarker": "projectileHit",
+      "cancelWindows": [
+        "hurt",
+        "defeat"
+      ],
+      "blendOrTransition": "cutOnEvent",
+      "reducedMotionClip": "sutroSignalWitch_commit",
+      "audioCue": "none",
+      "vfxCue": "none"
+    },
+    {
+      "clipId": "autonomousInformant_anticipate",
+      "actorRole": "autonomousInformant",
+      "state": "pursuit",
+      "directions": [
+        "n",
+        "e",
+        "s",
+        "w"
+      ],
+      "frameIds": [
+        "actor_autonomousInformant_pursuit_n_01",
+        "actor_autonomousInformant_pursuit_n_02",
+        "actor_autonomousInformant_pursuit_n_03",
+        "actor_autonomousInformant_pursuit_e_01",
+        "actor_autonomousInformant_pursuit_e_02",
+        "actor_autonomousInformant_pursuit_e_03",
+        "actor_autonomousInformant_pursuit_s_01",
+        "actor_autonomousInformant_pursuit_s_02",
+        "actor_autonomousInformant_pursuit_s_03",
+        "actor_autonomousInformant_pursuit_w_01",
+        "actor_autonomousInformant_pursuit_w_02",
+        "actor_autonomousInformant_pursuit_w_03"
+      ],
+      "framesPerSecond": 12,
+      "loop": false,
+      "anchor": {
+        "x": 32,
+        "y": 56
+      },
+      "authoritativeEventMarker": "none",
+      "cancelWindows": [
+        "hurt",
+        "defeat"
+      ],
+      "blendOrTransition": "telegraph",
+      "reducedMotionClip": "autonomousInformant_anticipate",
+      "audioCue": "none",
+      "vfxCue": "none"
+    },
+    {
+      "clipId": "autonomousInformant_commit",
+      "actorRole": "autonomousInformant",
+      "state": "pursuitCommit",
+      "directions": [
+        "n",
+        "e",
+        "s",
+        "w"
+      ],
+      "frameIds": [
+        "actor_autonomousInformant_pursuitCommit_n_01",
+        "actor_autonomousInformant_pursuitCommit_n_02",
+        "actor_autonomousInformant_pursuitCommit_e_01",
+        "actor_autonomousInformant_pursuitCommit_e_02",
+        "actor_autonomousInformant_pursuitCommit_s_01",
+        "actor_autonomousInformant_pursuitCommit_s_02",
+        "actor_autonomousInformant_pursuitCommit_w_01",
+        "actor_autonomousInformant_pursuitCommit_w_02"
+      ],
+      "framesPerSecond": 12,
+      "loop": false,
+      "anchor": {
+        "x": 32,
+        "y": 56
+      },
+      "authoritativeEventMarker": "none",
+      "cancelWindows": [
+        "hurt",
+        "defeat"
+      ],
+      "blendOrTransition": "cutOnEvent",
+      "reducedMotionClip": "autonomousInformant_commit",
+      "audioCue": "none",
+      "vfxCue": "none"
+    },
+    {
+      "clipId": "victorianVendor_anticipate",
+      "actorRole": "victorianVendor",
+      "state": "throw",
+      "directions": [
+        "n",
+        "e",
+        "s",
+        "w"
+      ],
+      "frameIds": [
+        "actor_victorianVendor_throw_n_01",
+        "actor_victorianVendor_throw_n_02",
+        "actor_victorianVendor_throw_n_03",
+        "actor_victorianVendor_throw_e_01",
+        "actor_victorianVendor_throw_e_02",
+        "actor_victorianVendor_throw_e_03",
+        "actor_victorianVendor_throw_s_01",
+        "actor_victorianVendor_throw_s_02",
+        "actor_victorianVendor_throw_s_03",
+        "actor_victorianVendor_throw_w_01",
+        "actor_victorianVendor_throw_w_02",
+        "actor_victorianVendor_throw_w_03"
+      ],
+      "framesPerSecond": 12,
+      "loop": false,
+      "anchor": {
+        "x": 32,
+        "y": 56
+      },
+      "authoritativeEventMarker": "none",
+      "cancelWindows": [
+        "hurt",
+        "defeat"
+      ],
+      "blendOrTransition": "telegraph",
+      "reducedMotionClip": "victorianVendor_anticipate",
+      "audioCue": "none",
+      "vfxCue": "none"
+    },
+    {
+      "clipId": "victorianVendor_commit",
+      "actorRole": "victorianVendor",
+      "state": "throwCommit",
+      "directions": [
+        "n",
+        "e",
+        "s",
+        "w"
+      ],
+      "frameIds": [
+        "actor_victorianVendor_throwCommit_n_01",
+        "actor_victorianVendor_throwCommit_n_02",
+        "actor_victorianVendor_throwCommit_e_01",
+        "actor_victorianVendor_throwCommit_e_02",
+        "actor_victorianVendor_throwCommit_s_01",
+        "actor_victorianVendor_throwCommit_s_02",
+        "actor_victorianVendor_throwCommit_w_01",
+        "actor_victorianVendor_throwCommit_w_02"
+      ],
+      "framesPerSecond": 12,
+      "loop": false,
+      "anchor": {
+        "x": 32,
+        "y": 56
+      },
+      "authoritativeEventMarker": "none",
+      "cancelWindows": [
+        "hurt",
+        "defeat"
+      ],
+      "blendOrTransition": "cutOnEvent",
+      "reducedMotionClip": "victorianVendor_commit",
+      "audioCue": "none",
+      "vfxCue": "none"
+    },
+    {
+      "clipId": "algorithmicModerate_commandPulse",
+      "actorRole": "algorithmicModerate",
+      "state": "commandPulse",
+      "directions": [
+        "n",
+        "e",
+        "s",
+        "w"
+      ],
+      "frameIds": [
+        "actor_algorithmicModerate_commandPulse_n_01",
+        "actor_algorithmicModerate_commandPulse_n_02",
+        "actor_algorithmicModerate_commandPulse_n_03",
+        "actor_algorithmicModerate_commandPulse_n_04",
+        "actor_algorithmicModerate_commandPulse_n_05",
+        "actor_algorithmicModerate_commandPulse_n_06",
+        "actor_algorithmicModerate_commandPulse_e_01",
+        "actor_algorithmicModerate_commandPulse_e_02",
+        "actor_algorithmicModerate_commandPulse_e_03",
+        "actor_algorithmicModerate_commandPulse_e_04",
+        "actor_algorithmicModerate_commandPulse_e_05",
+        "actor_algorithmicModerate_commandPulse_e_06",
+        "actor_algorithmicModerate_commandPulse_s_01",
+        "actor_algorithmicModerate_commandPulse_s_02",
+        "actor_algorithmicModerate_commandPulse_s_03",
+        "actor_algorithmicModerate_commandPulse_s_04",
+        "actor_algorithmicModerate_commandPulse_s_05",
+        "actor_algorithmicModerate_commandPulse_s_06",
+        "actor_algorithmicModerate_commandPulse_w_01",
+        "actor_algorithmicModerate_commandPulse_w_02",
+        "actor_algorithmicModerate_commandPulse_w_03",
+        "actor_algorithmicModerate_commandPulse_w_04",
+        "actor_algorithmicModerate_commandPulse_w_05",
+        "actor_algorithmicModerate_commandPulse_w_06"
+      ],
+      "framesPerSecond": 12,
+      "loop": false,
+      "anchor": {
+        "x": 48,
+        "y": 84
+      },
+      "authoritativeEventMarker": "bossAttackStarted",
+      "cancelWindows": [
+        "defeat"
+      ],
+      "blendOrTransition": "cutOnEvent",
+      "reducedMotionClip": "algorithmicModerate_commandPulse",
+      "audioCue": "none",
+      "vfxCue": "none"
+    },
+    {
+      "clipId": "algorithmicModerate_sweep",
+      "actorRole": "algorithmicModerate",
+      "state": "sweep",
+      "directions": [
+        "n",
+        "e",
+        "s",
+        "w"
+      ],
+      "frameIds": [
+        "actor_algorithmicModerate_sweep_n_01",
+        "actor_algorithmicModerate_sweep_n_02",
+        "actor_algorithmicModerate_sweep_n_03",
+        "actor_algorithmicModerate_sweep_n_04",
+        "actor_algorithmicModerate_sweep_n_05",
+        "actor_algorithmicModerate_sweep_n_06",
+        "actor_algorithmicModerate_sweep_e_01",
+        "actor_algorithmicModerate_sweep_e_02",
+        "actor_algorithmicModerate_sweep_e_03",
+        "actor_algorithmicModerate_sweep_e_04",
+        "actor_algorithmicModerate_sweep_e_05",
+        "actor_algorithmicModerate_sweep_e_06",
+        "actor_algorithmicModerate_sweep_s_01",
+        "actor_algorithmicModerate_sweep_s_02",
+        "actor_algorithmicModerate_sweep_s_03",
+        "actor_algorithmicModerate_sweep_s_04",
+        "actor_algorithmicModerate_sweep_s_05",
+        "actor_algorithmicModerate_sweep_s_06",
+        "actor_algorithmicModerate_sweep_w_01",
+        "actor_algorithmicModerate_sweep_w_02",
+        "actor_algorithmicModerate_sweep_w_03",
+        "actor_algorithmicModerate_sweep_w_04",
+        "actor_algorithmicModerate_sweep_w_05",
+        "actor_algorithmicModerate_sweep_w_06"
+      ],
+      "framesPerSecond": 12,
+      "loop": false,
+      "anchor": {
+        "x": 48,
+        "y": 84
+      },
+      "authoritativeEventMarker": "bossAttackStarted",
+      "cancelWindows": [
+        "defeat"
+      ],
+      "blendOrTransition": "cutOnEvent",
+      "reducedMotionClip": "algorithmicModerate_sweep",
+      "audioCue": "none",
+      "vfxCue": "none"
+    },
+    {
+      "clipId": "algorithmicModerate_targetedStrike",
+      "actorRole": "algorithmicModerate",
+      "state": "targetedStrike",
+      "directions": [
+        "n",
+        "e",
+        "s",
+        "w"
+      ],
+      "frameIds": [
+        "actor_algorithmicModerate_targetedStrike_n_01",
+        "actor_algorithmicModerate_targetedStrike_n_02",
+        "actor_algorithmicModerate_targetedStrike_n_03",
+        "actor_algorithmicModerate_targetedStrike_n_04",
+        "actor_algorithmicModerate_targetedStrike_e_01",
+        "actor_algorithmicModerate_targetedStrike_e_02",
+        "actor_algorithmicModerate_targetedStrike_e_03",
+        "actor_algorithmicModerate_targetedStrike_e_04",
+        "actor_algorithmicModerate_targetedStrike_s_01",
+        "actor_algorithmicModerate_targetedStrike_s_02",
+        "actor_algorithmicModerate_targetedStrike_s_03",
+        "actor_algorithmicModerate_targetedStrike_s_04",
+        "actor_algorithmicModerate_targetedStrike_w_01",
+        "actor_algorithmicModerate_targetedStrike_w_02",
+        "actor_algorithmicModerate_targetedStrike_w_03",
+        "actor_algorithmicModerate_targetedStrike_w_04"
+      ],
+      "framesPerSecond": 12,
+      "loop": false,
+      "anchor": {
+        "x": 48,
+        "y": 84
+      },
+      "authoritativeEventMarker": "bossAttackStarted",
+      "cancelWindows": [
+        "defeat"
+      ],
+      "blendOrTransition": "cutOnEvent",
+      "reducedMotionClip": "algorithmicModerate_targetedStrike",
+      "audioCue": "none",
+      "vfxCue": "none"
+    },
+    {
+      "clipId": "algorithmicModerate_reinforcementCall",
+      "actorRole": "algorithmicModerate",
+      "state": "reinforcementCall",
+      "directions": [
+        "n",
+        "e",
+        "s",
+        "w"
+      ],
+      "frameIds": [
+        "actor_algorithmicModerate_reinforcementCall_n_01",
+        "actor_algorithmicModerate_reinforcementCall_n_02",
+        "actor_algorithmicModerate_reinforcementCall_n_03",
+        "actor_algorithmicModerate_reinforcementCall_n_04",
+        "actor_algorithmicModerate_reinforcementCall_e_01",
+        "actor_algorithmicModerate_reinforcementCall_e_02",
+        "actor_algorithmicModerate_reinforcementCall_e_03",
+        "actor_algorithmicModerate_reinforcementCall_e_04",
+        "actor_algorithmicModerate_reinforcementCall_s_01",
+        "actor_algorithmicModerate_reinforcementCall_s_02",
+        "actor_algorithmicModerate_reinforcementCall_s_03",
+        "actor_algorithmicModerate_reinforcementCall_s_04",
+        "actor_algorithmicModerate_reinforcementCall_w_01",
+        "actor_algorithmicModerate_reinforcementCall_w_02",
+        "actor_algorithmicModerate_reinforcementCall_w_03",
+        "actor_algorithmicModerate_reinforcementCall_w_04"
+      ],
+      "framesPerSecond": 10,
+      "loop": false,
+      "anchor": {
+        "x": 48,
+        "y": 84
+      },
+      "authoritativeEventMarker": "bossAttackStarted",
+      "cancelWindows": [
+        "defeat"
+      ],
+      "blendOrTransition": "cutOnEvent",
+      "reducedMotionClip": "algorithmicModerate_reinforcementCall",
+      "audioCue": "none",
+      "vfxCue": "none"
+    },
+    {
+      "clipId": "algorithmicModerate_phaseTransition",
+      "actorRole": "algorithmicModerate",
+      "state": "phaseTransition",
+      "directions": [
+        "n",
+        "e",
+        "s",
+        "w"
+      ],
+      "frameIds": [
+        "actor_algorithmicModerate_phaseTransition_n_01",
+        "actor_algorithmicModerate_phaseTransition_n_02",
+        "actor_algorithmicModerate_phaseTransition_n_03",
+        "actor_algorithmicModerate_phaseTransition_n_04",
+        "actor_algorithmicModerate_phaseTransition_n_05",
+        "actor_algorithmicModerate_phaseTransition_n_06",
+        "actor_algorithmicModerate_phaseTransition_n_07",
+        "actor_algorithmicModerate_phaseTransition_n_08",
+        "actor_algorithmicModerate_phaseTransition_e_01",
+        "actor_algorithmicModerate_phaseTransition_e_02",
+        "actor_algorithmicModerate_phaseTransition_e_03",
+        "actor_algorithmicModerate_phaseTransition_e_04",
+        "actor_algorithmicModerate_phaseTransition_e_05",
+        "actor_algorithmicModerate_phaseTransition_e_06",
+        "actor_algorithmicModerate_phaseTransition_e_07",
+        "actor_algorithmicModerate_phaseTransition_e_08",
+        "actor_algorithmicModerate_phaseTransition_s_01",
+        "actor_algorithmicModerate_phaseTransition_s_02",
+        "actor_algorithmicModerate_phaseTransition_s_03",
+        "actor_algorithmicModerate_phaseTransition_s_04",
+        "actor_algorithmicModerate_phaseTransition_s_05",
+        "actor_algorithmicModerate_phaseTransition_s_06",
+        "actor_algorithmicModerate_phaseTransition_s_07",
+        "actor_algorithmicModerate_phaseTransition_s_08",
+        "actor_algorithmicModerate_phaseTransition_w_01",
+        "actor_algorithmicModerate_phaseTransition_w_02",
+        "actor_algorithmicModerate_phaseTransition_w_03",
+        "actor_algorithmicModerate_phaseTransition_w_04",
+        "actor_algorithmicModerate_phaseTransition_w_05",
+        "actor_algorithmicModerate_phaseTransition_w_06",
+        "actor_algorithmicModerate_phaseTransition_w_07",
+        "actor_algorithmicModerate_phaseTransition_w_08"
+      ],
+      "framesPerSecond": 10,
+      "loop": false,
+      "anchor": {
+        "x": 48,
+        "y": 84
+      },
+      "authoritativeEventMarker": "bossPhaseChanged",
+      "cancelWindows": [
+        "defeat"
+      ],
+      "blendOrTransition": "cutOnEvent",
+      "reducedMotionClip": "algorithmicModerate_phaseTransition",
+      "audioCue": "none",
+      "vfxCue": "none"
+    },
+    {
+      "clipId": "algorithmicModerate_stagger",
+      "actorRole": "algorithmicModerate",
+      "state": "stagger",
+      "directions": [
+        "n",
+        "e",
+        "s",
+        "w"
+      ],
+      "frameIds": [
+        "actor_algorithmicModerate_stagger_n_01",
+        "actor_algorithmicModerate_stagger_n_02",
+        "actor_algorithmicModerate_stagger_n_03",
+        "actor_algorithmicModerate_stagger_e_01",
+        "actor_algorithmicModerate_stagger_e_02",
+        "actor_algorithmicModerate_stagger_e_03",
+        "actor_algorithmicModerate_stagger_s_01",
+        "actor_algorithmicModerate_stagger_s_02",
+        "actor_algorithmicModerate_stagger_s_03",
+        "actor_algorithmicModerate_stagger_w_01",
+        "actor_algorithmicModerate_stagger_w_02",
+        "actor_algorithmicModerate_stagger_w_03"
+      ],
+      "framesPerSecond": 12,
+      "loop": false,
+      "anchor": {
+        "x": 48,
+        "y": 84
+      },
+      "authoritativeEventMarker": "entityDamaged",
+      "cancelWindows": [
+        "defeat"
+      ],
+      "blendOrTransition": "cutOnEvent",
+      "reducedMotionClip": "algorithmicModerate_stagger",
+      "audioCue": "none",
+      "vfxCue": "none"
+    },
+    {
+      "clipId": "algorithmicModerate_defeat",
+      "actorRole": "algorithmicModerate",
+      "state": "defeat",
+      "directions": [
+        "n",
+        "e",
+        "s",
+        "w"
+      ],
+      "frameIds": [
+        "actor_algorithmicModerate_defeat_n_01",
+        "actor_algorithmicModerate_defeat_n_02",
+        "actor_algorithmicModerate_defeat_n_03",
+        "actor_algorithmicModerate_defeat_n_04",
+        "actor_algorithmicModerate_defeat_n_05",
+        "actor_algorithmicModerate_defeat_n_06",
+        "actor_algorithmicModerate_defeat_e_01",
+        "actor_algorithmicModerate_defeat_e_02",
+        "actor_algorithmicModerate_defeat_e_03",
+        "actor_algorithmicModerate_defeat_e_04",
+        "actor_algorithmicModerate_defeat_e_05",
+        "actor_algorithmicModerate_defeat_e_06",
+        "actor_algorithmicModerate_defeat_s_01",
+        "actor_algorithmicModerate_defeat_s_02",
+        "actor_algorithmicModerate_defeat_s_03",
+        "actor_algorithmicModerate_defeat_s_04",
+        "actor_algorithmicModerate_defeat_s_05",
+        "actor_algorithmicModerate_defeat_s_06",
+        "actor_algorithmicModerate_defeat_w_01",
+        "actor_algorithmicModerate_defeat_w_02",
+        "actor_algorithmicModerate_defeat_w_03",
+        "actor_algorithmicModerate_defeat_w_04",
+        "actor_algorithmicModerate_defeat_w_05",
+        "actor_algorithmicModerate_defeat_w_06"
+      ],
+      "framesPerSecond": 10,
+      "loop": false,
+      "anchor": {
+        "x": 48,
+        "y": 84
+      },
+      "authoritativeEventMarker": "bossDefeated",
+      "cancelWindows": [],
+      "blendOrTransition": "terminal",
+      "reducedMotionClip": "algorithmicModerate_defeat",
+      "audioCue": "boss_defeated",
+      "vfxCue": "none"
+    },
+    {
+      "clipId": "camera_operational_idle",
+      "actorRole": "camera",
+      "state": "operationalIdle",
+      "directions": [],
+      "frameIds": [
+        "actor_camera_operationalIdle_none_01",
+        "actor_camera_operationalIdle_none_02",
+        "actor_camera_operationalIdle_none_03",
+        "actor_camera_operationalIdle_none_04"
+      ],
+      "framesPerSecond": 6,
+      "loop": true,
+      "anchor": {
+        "x": 32,
+        "y": 88
+      },
+      "authoritativeEventMarker": "none",
+      "cancelWindows": [
+        "camera_hit",
+        "camera_critical_enter",
+        "camera_destroy"
+      ],
+      "blendOrTransition": "textureEmissiveOnly",
+      "reducedMotionClip": "camera_operational_idle",
+      "audioCue": "none",
+      "vfxCue": "none"
+    },
+    {
+      "clipId": "camera_hit",
+      "actorRole": "camera",
+      "state": "hit",
+      "directions": [],
+      "frameIds": [
+        "actor_camera_hit_none_01",
+        "actor_camera_hit_none_02"
+      ],
+      "framesPerSecond": 16,
+      "loop": false,
+      "anchor": {
+        "x": 32,
+        "y": 88
+      },
+      "authoritativeEventMarker": "cameraIntegrityChanged",
+      "cancelWindows": [
+        "camera_destroy"
+      ],
+      "blendOrTransition": "textureEmissiveOnly",
+      "reducedMotionClip": "camera_hit",
+      "audioCue": "camera_hit_01",
+      "vfxCue": "none"
+    },
+    {
+      "clipId": "camera_critical_enter",
+      "actorRole": "camera",
+      "state": "criticalEnter",
+      "directions": [],
+      "frameIds": [
+        "actor_camera_criticalEnter_none_01",
+        "actor_camera_criticalEnter_none_02",
+        "actor_camera_criticalEnter_none_03"
+      ],
+      "framesPerSecond": 12,
+      "loop": false,
+      "anchor": {
+        "x": 32,
+        "y": 88
+      },
+      "authoritativeEventMarker": "cameraIntegrityChanged",
+      "cancelWindows": [
+        "camera_destroy"
+      ],
+      "blendOrTransition": "textureEmissiveOnly",
+      "reducedMotionClip": "camera_critical_enter",
+      "audioCue": "camera_critical",
+      "vfxCue": "none"
+    },
+    {
+      "clipId": "camera_destroy",
+      "actorRole": "camera",
+      "state": "destroy",
+      "directions": [],
+      "frameIds": [
+        "actor_camera_destroy_none_01",
+        "actor_camera_destroy_none_02",
+        "actor_camera_destroy_none_03",
+        "actor_camera_destroy_none_04"
+      ],
+      "framesPerSecond": 12,
+      "loop": false,
+      "anchor": {
+        "x": 32,
+        "y": 88
+      },
+      "authoritativeEventMarker": "cameraDestroyed",
+      "cancelWindows": [],
+      "blendOrTransition": "textureEmissiveOnly",
+      "reducedMotionClip": "camera_destroy",
+      "audioCue": "camera_destroy",
+      "vfxCue": "none"
+    },
+    {
+      "clipId": "camera_field_off",
+      "actorRole": "camera",
+      "state": "fieldOff",
+      "directions": [],
+      "frameIds": [
+        "actor_camera_fieldOff_none_01"
+      ],
+      "framesPerSecond": 12,
+      "loop": false,
+      "anchor": {
+        "x": 32,
+        "y": 88
+      },
+      "authoritativeEventMarker": "cameraDestroyed",
+      "cancelWindows": [],
+      "blendOrTransition": "immediateOnEvent",
+      "reducedMotionClip": "camera_field_off",
+      "audioCue": "camera_network_tamper",
+      "vfxCue": "none"
+    },
+    {
+      "clipId": "camera_destroyed_idle",
+      "actorRole": "camera",
+      "state": "destroyedIdle",
+      "directions": [],
+      "frameIds": [
+        "actor_camera_destroyedIdle_none_01",
+        "actor_camera_destroyedIdle_none_02"
+      ],
+      "framesPerSecond": 4,
+      "loop": true,
+      "anchor": {
+        "x": 32,
+        "y": 88
+      },
+      "authoritativeEventMarker": "none",
+      "cancelWindows": [],
+      "blendOrTransition": "textureEmissiveOnly",
+      "reducedMotionClip": "camera_destroyed_idle",
+      "audioCue": "none",
+      "vfxCue": "none"
+    }
+  ]
+}
