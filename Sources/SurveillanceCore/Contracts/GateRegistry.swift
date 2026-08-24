@@ -109,4 +109,12 @@ public enum GateRegistry {
     public static var playtestGateIds: [String] {
         evidence.filter { $0.kind == .playtest }.map(\.gateId)
     }
+
+    public static var mappedGateIds: Set<String> {
+        Set(evidence.map(\.gateId))
+    }
+
+    public static func unmappedGateIds() -> [String] {
+        allGateIds.filter { !mappedGateIds.contains($0) }
+    }
 }
