@@ -27,9 +27,11 @@ public struct Xoshiro256StarStar: Equatable, Sendable {
         Xoshiro256StarStar(seed: CameraPlacement.placementSeed(runSeed: runSeed))
     }
 
+    /// Cosmetic stream: `COSMET01` ASCII constant, excluded from digest and receipt authority.
+    public static let cosmeticStreamConstant: UInt64 = 0x434F_534D_4554_3031
+
     public static func cosmetic(runSeed: UInt64) -> Xoshiro256StarStar {
-        let streamConstant: UInt64 = 0x434F_534D_4554_3031 // COSMET01
-        let cosmeticSeed = SplitMix64.mix(runSeed ^ streamConstant)
+        let cosmeticSeed = SplitMix64.mix(runSeed ^ cosmeticStreamConstant)
         return Xoshiro256StarStar(seed: cosmeticSeed)
     }
 
