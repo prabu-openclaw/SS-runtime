@@ -129,7 +129,7 @@ public struct DeviceRunEvidence: Equatable, Sendable {
         memoryWarnings: Int,
         thermalState: String,
         residentMemoryBytes: UInt64,
-        atlasMemoryBytes: UInt64
+        atlasMemoryBytes: UInt64? = nil
     ) -> DeviceRunEvidence {
         let thermalEvents = thermalState == "serious" || thermalState == "critical" ? 1 : 0
         return DeviceRunEvidence(
