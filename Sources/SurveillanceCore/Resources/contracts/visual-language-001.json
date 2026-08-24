@@ -1,0 +1,54 @@
+{
+  "schemaVersion": "visual-language-001",
+  "visualVersion": "visual-civic-seam-001",
+  "authoringGridUnits": 64,
+  "actorFootprintUnits": {"min": 28, "max": 36},
+  "filtering": "nearestNeighbor",
+  "criticalContrast": "3:1",
+  "textContrast": "4.5:1",
+  "colorIsNotSoleCarrier": true,
+  "collisionNeverFromSpriteBounds": true,
+  "salience": [
+    {"rank": 1, "surface": "player", "distinction": "Unique silhouette, persistent grounding ring, unobscured core"},
+    {"rank": 2, "surface": "lethalTelegraphAndProjectile", "distinction": "Shape, motion, outline, and high local contrast"},
+    {"rank": 3, "surface": "extractionAndCriticalObjective", "distinction": "Stable icon plus directional cue"},
+    {"rank": 4, "surface": "cameraFieldAndDetection", "distinction": "Procedural geometry plus boundary pattern"},
+    {"rank": 5, "surface": "algorithmicModerate", "distinction": "Scale, silhouette, persistent boss marker"},
+    {"rank": 6, "surface": "standardEnemies", "distinction": "Role-readable silhouettes"},
+    {"rank": 7, "surface": "dropsAndUpgrades", "distinction": "Compact pulse and icon"},
+    {"rank": 8, "surface": "environmentInteractables", "distinction": "Contextual rim or icon"},
+    {"rank": 9, "surface": "decoration", "distinction": "Lowest contrast and motion budget"}
+  ],
+  "palette": [
+    {"role": "player", "family": "warmIvoryAmberCore", "nonColorCarrier": "circularGroundingRingAndFourNotchMarker"},
+    {"role": "safeSpace", "family": "coolCyan", "nonColorCarrier": "dashedBoundary"},
+    {"role": "cameraObservation", "family": "cyanWhiteLowState", "nonColorCarrier": "scanLinePatternAndWedgeBoundary"},
+    {"role": "tracked", "family": "amber", "nonColorCarrier": "doubleBoundaryAndTrackedGlyph"},
+    {"role": "hunted", "family": "magentaRed", "nonColorCarrier": "triangularChevronsAndPulseCadence"},
+    {"role": "enemyBody", "family": "desaturatedCivicNavyGray", "nonColorCarrier": "silhouetteAndRoleMarker"},
+    {"role": "playerAttack", "family": "warmWhite", "nonColorCarrier": "roundProjectileAndShortTrail"},
+    {"role": "enemyAttack", "family": "magentaRed", "nonColorCarrier": "diamondProjectileAndSegmentedTrail"},
+    {"role": "extraction", "family": "greenCyan", "nonColorCarrier": "portalBracketsAndExtractIcon"},
+    {"role": "neutralEnvironment", "family": "blueGrayAsphaltConcrete", "nonColorCarrier": "materialTexture"},
+    {"role": "collectible", "family": "gold", "nonColorCarrier": "diamondStarIcon"}
+  ],
+  "spriteBoxes": {
+    "playerAndStandardEnemy": {"width": 64, "height": 64},
+    "improperSearchDaemon": {"width": 80, "height": 80},
+    "algorithmicModerate": {"width": 96, "height": 96},
+    "cameraPole": {"width": 64, "height": 96},
+    "environmentModuleMultiple": 64
+  },
+  "atlases": [
+    "player.atlas",
+    "enemies_standard.atlas",
+    "captain.atlas",
+    "sf_environment_core.atlas",
+    "sf_environment_props.atlas",
+    "surveillance_ui.atlas",
+    "combat_vfx.atlas",
+    "hud.atlas"
+  ],
+  "deliveryNamePattern": "{domain}_{role}_{state}_{direction}_{frame}@{scale}.png",
+  "groundContactMustBeStable": true
+}

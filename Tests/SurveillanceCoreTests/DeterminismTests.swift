@@ -1,8 +1,10 @@
+import Foundation
 import Testing
 @testable import SurveillanceCore
 
 @Test func sha256KnownVector() {
     #expect(SHA256.hex("abc") == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")
+    #expect(SHA256.hex([UInt8]()) == SHA256.emptyDigest)
 }
 
 @Test func splitMixAndXoshiroGoldenSequence() {

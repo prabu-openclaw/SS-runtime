@@ -128,6 +128,13 @@ public enum IsolatedKernel {
         return (afterLeave, afterReenter)
     }
 
+    /// AR-009: Simulation.step resolves player death before extraction success.
+    public static func extractionVersusDeath(integrity: Int, remainingAfterTick: Int) -> RunOutcome {
+        if integrity <= 0 { return .failure }
+        if remainingAfterTick == 0 { return .success }
+        return .playing
+    }
+
     public static func distanceUnits(_ a: VecQ8, _ b: VecQ8) -> Int {
         Int(IntMath.isqrt(a.distanceSquared(to: b)) / Q8.scale)
     }

@@ -2,6 +2,8 @@ import Foundation
 
 /// SHA-256 producing lowercase hex digests for canonical state hashing.
 public enum SHA256 {
+    public static let emptyDigest = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+
     public static func hash(_ data: [UInt8]) -> [UInt8] {
         var h: [UInt32] = [
             0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,

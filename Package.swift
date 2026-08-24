@@ -16,6 +16,9 @@ let package = Package(
                 .copy("Resources/SPEC_PIN.txt")
             ]
         ),
-        .testTarget(name: "SurveillanceCoreTests", dependencies: ["SurveillanceCore"])
+        .testTarget(
+            name: "SurveillanceCoreTests",
+            dependencies: ["SurveillanceCore"]
+        )
     ]
 )
