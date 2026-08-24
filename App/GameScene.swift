@@ -127,10 +127,10 @@ final class GameScene: SKScene {
         for camera in snap.cameras {
             let body = SKShapeNode(circleOfRadius: 12)
             body.position = CGPoint(x: camera.x, y: camera.y)
-            body.fillColor = camera.integrity == 0 ? SKColor(white: 0.2, alpha: 1) : SKColor(red: 0.85, green: 0.55, blue: 0.15, alpha: 1)
+            body.fillColor = Self.cameraFill(camera.presentationState)
             body.strokeColor = .clear
             worldNode.addChild(body)
-            if camera.integrity > 0 {
+            if camera.fieldVisible {
                 let path = CGMutablePath()
                 path.move(to: .zero)
                 let half = CGFloat(camera.fieldAngleMilli) / 2000 * .pi / 180
@@ -236,6 +236,19 @@ final class GameScene: SKScene {
             ring.fontColor = SKColor(white: 0.9, alpha: 1)
             ring.position = CGPoint(x: 0, y: 40)
             hudNode.addChild(ring)
+        }
+    }
+
+    private static func cameraFill(_ state: CameraPresentationState) -> SKColor {
+        switch state {
+        case .operational:
+            return SKColor(white: 0.78, alpha: 1)
+        case .damaged, .hit:
+            return SKColor(white: 0.55, alpha: 1)
+        case .critical:
+            return SKColor(white: 0.38, alpha: 1)
+        case .destroying, .fieldOff, .destroyed, .dormant:
+            return SKColor(white: 0.18, alpha: 1)
         }
     }
 
