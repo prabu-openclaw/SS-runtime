@@ -322,6 +322,25 @@ struct CameraDestructionOrderTests {
         #expect(eventIds.count == 2)
         #expect(eventsMatch)
     }
+
+    @Test func cameraRicochetDoesNotRehitSurvivingSource() throws {
+        var sim = try Simulation.make(seed: 1)
+        sim.testing_selectUpgrade(.ricochetPulse)
+        sim.testing_relocateCamera(at: 0, position: VecI(x: 200, y: 200), headingMilli: MilliDeg.right)
+        sim.testing_relocateCamera(at: 1, position: VecI(x: 280, y: 200), headingMilli: MilliDeg.right)
+        sim.testing_keepCameras([0, 1], integrity: 3)
+        let first = sim.state.cameras[0]
+        sim.testing_injectPulseHitting(camera: first)
+        _ = sim.step(command: .neutral(tick: 1))
+        let integrity0 = sim.state.cameras[0].integrity
+        let integrity1 = sim.state.cameras[1].integrity
+        let destroyed = sim.state.destructions.count
+        let exposure = sim.state.exposure.exposure
+        #expect(integrity0 == 2)
+        #expect(integrity1 == 2)
+        #expect(destroyed == 0)
+        #expect(exposure == 0)
+    }
 }
 
 private func payloadInt(_ event: AuthoritativeEvent, _ key: String) -> Int {

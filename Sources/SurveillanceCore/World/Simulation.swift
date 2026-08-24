@@ -549,6 +549,8 @@ public struct Simulation: Equatable, Sendable {
                         "appliedDamage": .integer(1)
                     ]
                 )
+                // camera-destruction.md §7 / upgrades.md: one projectile damages a Camera at most once.
+                state.projectiles[hit.index].hitEntityIds.append(hit.target)
                 if state.cameras[cIndex].integrity == 0 {
                     destroyed.insert(hit.target)
                     destroyCamera(at: cIndex, projectile: hit.projectile, tick: tick)
@@ -599,6 +601,10 @@ public struct Simulation: Equatable, Sendable {
             }
             return
         }
+        var hitEntityIds = source.hitEntityIds
+        if !hitEntityIds.contains(excluding) {
+            hitEntityIds.append(excluding)
+        }
         let velocity = Targeting.direct(from: origin, to: next.anchor, speed: Int64(Targeting.projectileSpeedPerTick) * Q8.scale)
         let ricochet = ProjectileBody(
             id: source.id,
@@ -614,7 +620,7 @@ public struct Simulation: Equatable, Sendable {
             lifetime: Targeting.projectileLifetime,
             distanceTravelledQ8: 0,
             maxTravelQ8: range,
-            hitEntityIds: source.hitEntityIds,
+            hitEntityIds: hitEntityIds,
             alive: true
         )
         if let index = state.projectiles.firstIndex(where: { $0.id == source.id }) {
