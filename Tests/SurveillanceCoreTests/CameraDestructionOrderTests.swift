@@ -1,6 +1,32 @@
 import Testing
 @testable import SurveillanceCore
 
+private struct CameraLayoutSnapshot: Equatable {
+    var sockets: [String]
+    var ids: [UInt64]
+    var headings: [Int]
+    var integrity: [Int]
+}
+
+private func cameraLayoutSnapshot(_ cameras: [SelectedCamera]) -> CameraLayoutSnapshot {
+    CameraLayoutSnapshot(
+        sockets: cameras.map(\.socketId),
+        ids: cameras.map(\.entityId.raw),
+        headings: cameras.map(\.headingMilliDegrees),
+        integrity: cameras.map(\.integrity)
+    )
+}
+
+private func mountBox(_ camera: SelectedCamera) -> (Int, Int, Int, Int) {
+    let radius = camera.mountCollisionRadius
+    return (
+        camera.position.x - radius,
+        camera.position.x + radius,
+        camera.position.y - radius,
+        camera.position.y + radius
+    )
+}
+
 @Suite(.serialized)
 struct CameraDestructionOrderTests {
     @Test func cameraCD003DestroyWhileDetectingOmitsContactDelta() throws {
@@ -86,5 +112,81 @@ struct CameraDestructionOrderTests {
         #expect(result.tamperApplied == 100)
         #expect(state.exposure == 102)
         #expect(result.reason == .cameraTamper)
+    }
+
+    @Test func cameraCD008HitDestroyedCameraIsIgnored() throws {
+        var sim = try Simulation.make(seed: 1)
+        sim.testing_keepOnlyCamera(at: 0, integrity: 0)
+        let camera = sim.state.cameras[0]
+        sim.testing_injectPulseHitting(camera: camera)
+        let hit = sim.step(command: .neutral(tick: 1))
+        let integrity = sim.state.cameras[0].integrity
+        let destroyed = sim.state.destructions.count
+        let exposure = sim.state.exposure.exposure
+        let events = hit.events.filter { $0.type == .cameraDestroyed }.count
+        #expect(integrity == 0)
+        #expect(destroyed == 0)
+        #expect(exposure == 0)
+        #expect(events == 0)
+    }
+
+    @Test func cameraCD009RestartRestoresOperationalAtFixedTransforms() throws {
+        var sim = try Simulation.make(seed: 1)
+        let original = cameraLayoutSnapshot(sim.state.cameras)
+        sim.testing_keepOnlyCamera(at: 0, integrity: 1)
+        sim.testing_injectPulseHitting(camera: sim.state.cameras[0])
+        _ = sim.step(command: .neutral(tick: 1))
+        let destroyedCount = sim.state.destructions.count
+        let destroyedIntegrity = sim.state.cameras[0].integrity
+        sim.restart()
+        let restored = cameraLayoutSnapshot(sim.state.cameras)
+        let restoredDestructions = sim.state.destructions.count
+        let socketsMatch = restored.sockets == original.sockets
+        let idsMatch = restored.ids == original.ids
+        let headingsMatch = restored.headings == original.headings
+        let operational = restored.integrity == Array(repeating: 3, count: 8)
+        #expect(destroyedCount == 1)
+        #expect(destroyedIntegrity == 0)
+        #expect(socketsMatch)
+        #expect(idsMatch)
+        #expect(headingsMatch)
+        #expect(operational)
+        #expect(restoredDestructions == 0)
+    }
+
+    @Test func cameraT411DestroyedMountAndPoseStayFixedDuringRun() throws {
+        var sim = try Simulation.make(seed: 1)
+        sim.testing_keepOnlyCamera(at: 0, integrity: 1)
+        let before = sim.state.cameras[0]
+        let x = before.position.x
+        let y = before.position.y
+        let heading = before.headingMilliDegrees
+        let range = before.rangeUnits
+        let mountBefore = mountBox(before)
+        sim.testing_injectPulseHitting(camera: before)
+        _ = sim.step(command: .neutral(tick: 1))
+        for tick in 2...10 {
+            _ = sim.step(command: .neutral(tick: UInt64(tick)))
+        }
+        let after = sim.state.cameras[0]
+        let integrity = after.integrity
+        let xAfter = after.position.x
+        let yAfter = after.position.y
+        let headingAfter = after.headingMilliDegrees
+        let rangeAfter = after.rangeUnits
+        let detecting = after.wasDetecting
+        let damageable = after.isDamageable
+        let mountAfter = mountBox(after)
+        let stillPresent = sim.state.cameras.count
+        let mountMatch = mountBefore == mountAfter
+        #expect(integrity == 0)
+        #expect(!damageable)
+        #expect(!detecting)
+        #expect(xAfter == x)
+        #expect(yAfter == y)
+        #expect(headingAfter == heading)
+        #expect(rangeAfter == range)
+        #expect(mountMatch)
+        #expect(stillPresent == 8)
     }
 }

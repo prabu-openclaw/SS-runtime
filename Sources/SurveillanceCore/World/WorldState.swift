@@ -37,6 +37,7 @@ public struct WorldState: Equatable, Sendable {
 
     public var liveSolids: [(id: String, box: AABB)] {
         var solids = arena.solidsForCollision
+        // T411: destroyed Cameras keep the authored mount footprint; no extra debris.
         for camera in cameras {
             solids.append(
                 (
