@@ -132,8 +132,7 @@ public enum Targeting {
             let aim = VecQ8(x: Q8(raw: rx + vx * t / Q8.scale), y: Q8(raw: ry + vy * t / Q8.scale))
             return direct(from: .zero, to: aim, speed: speed)
         }
-        let disc = b * b - 4 * a * c
-        if disc < 0 { return nil }
+        guard let disc = IntMath.quadraticDiscriminant(a: a, b: b, c: c) else { return nil }
         let s = IntMath.isqrt(disc)
         let t1 = IntMath.divHalfAway(-b - s, 2 * a)
         let t2 = IntMath.divHalfAway(-b + s, 2 * a)

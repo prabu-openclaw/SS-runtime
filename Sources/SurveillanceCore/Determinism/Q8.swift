@@ -63,6 +63,25 @@ public struct VecQ8: Equatable, Hashable, Sendable {
         let dy = y.raw - other.y.raw
         return dx * dx + dy * dy
     }
+
+    public var clockwisePerpendicular: VecQ8 {
+        VecQ8(x: y, y: Q8(raw: 0 &- x.raw))
+    }
+
+    public func offset(units: Int, along direction: VecQ8) -> VecQ8 {
+        let mag = IntMath.isqrt(direction.lengthSquaredRaw)
+        if mag == 0 { return self }
+        let scale = Int64(units) * Q8.scale
+        return VecQ8(
+            x: Q8(raw: x.raw + IntMath.mulDivHalfAway(direction.x.raw, scale, mag)),
+            y: Q8(raw: y.raw + IntMath.mulDivHalfAway(direction.y.raw, scale, mag))
+        )
+    }
+
+    public func contains(_ point: VecQ8, radiusUnits: Int) -> Bool {
+        let r = Int64(radiusUnits) * Q8.scale
+        return distanceSquared(to: point) <= r * r
+    }
 }
 
 public struct VecI: Equatable, Hashable, Sendable {

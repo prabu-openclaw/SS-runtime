@@ -72,11 +72,13 @@ public enum EnemySystem {
         allocator: inout EntityAllocator,
         projectiles: inout [ProjectileBody],
         mines: inout [MineBody],
-        exposurePulses: inout [Int]
+        exposurePulses: inout [Int],
+        playerDamage: inout [(EntityID, Int)]
     ) {
         let ordered = enemies.indices.sorted { enemies[$0].id < enemies[$1].id }
         for index in ordered {
             guard enemies[index].alive else { continue }
+            var damage = 0
             think(
                 &enemies[index],
                 player: player,
@@ -86,8 +88,12 @@ public enum EnemySystem {
                 projectiles: &projectiles,
                 mines: &mines,
                 exposurePulses: &exposurePulses,
-                solids: solids
+                solids: solids,
+                playerDamage: &damage
             )
+            if damage > 0 {
+                playerDamage.append((enemies[index].id, damage))
+            }
             Steering.applySeparation(enemies: &enemies, index: index)
             let moved = Collision.slideCircle(
                 from: enemies[index].position,
@@ -114,7 +120,8 @@ public enum EnemySystem {
         projectiles: inout [ProjectileBody],
         mines: inout [MineBody],
         exposurePulses: inout [Int],
-        solids: [(id: String, box: AABB)]
+        solids: [(id: String, box: AABB)],
+        playerDamage: inout Int
     ) {
         let speed = Steering.speedQ8(enemy.speedUnitsPerSecond)
         let distSq = enemy.position.distanceSquared(to: player.position)
@@ -260,30 +267,53 @@ public enum EnemySystem {
             }
 
         case .improperSearchDaemon:
-            stepDaemon(&enemy, player: player, speed: speed)
+            stepDaemon(&enemy, player: player, speed: speed, playerDamage: &playerDamage)
 
         case .algorithmicModerate:
-            enemy.velocity = Steering.toward(enemy.position, player.position, speedPerTickQ8: speed)
+            break
         }
     }
 
-    private static func stepDaemon(_ enemy: inout EnemyBody, player: PlayerBody, speed: Int64) {
-        if enemy.stateTicks > 0 { return }
+    private static func stepDaemon(
+        _ enemy: inout EnemyBody,
+        player: PlayerBody,
+        speed: Int64,
+        playerDamage: inout Int
+    ) {
+        if enemy.stateTicks > 0 {
+            switch enemy.state {
+            case .pursue:
+                enemy.velocity = Steering.toward(enemy.position, player.position, speedPerTickQ8: speed)
+            case .dash:
+                break
+            default:
+                enemy.velocity = .zero
+            }
+            return
+        }
         switch enemy.state {
         case .pursue:
+            enemy.queryMarkers = DaemonQuery.markers(playerPosition: player.position, facing: player.facing)
             enemy.state = .queryTelegraph
             enemy.stateTicks = 45
             enemy.velocity = .zero
         case .queryTelegraph:
             enemy.state = .queryResolve
-            enemy.stateTicks = 1
+            enemy.stateTicks = 0
+            stepDaemon(&enemy, player: player, speed: speed, playerDamage: &playerDamage)
         case .queryResolve:
+            playerDamage += DaemonQuery.damage(playerPosition: player.position, markers: enemy.queryMarkers)
             enemy.state = .dashTelegraph
             enemy.stateTicks = 36
+            enemy.velocity = .zero
         case .dashTelegraph:
             enemy.state = .dash
             enemy.stateTicks = 30
-            enemy.velocity = Steering.toward(enemy.position, player.position, speedPerTickQ8: Steering.speedQ8(288))
+            enemy.velocity = Steering.toward(
+                enemy.position,
+                player.position,
+                speedPerTickQ8: Steering.speedQ8(288)
+            )
         case .dash:
             enemy.state = .recover
             enemy.stateTicks = 60
