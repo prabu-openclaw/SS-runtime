@@ -50,7 +50,7 @@ public struct Simulation: Equatable, Sendable {
             mines: [],
             exposure: ExposureState(),
             upgrade: UpgradeState(),
-            extraction: ExtractionState(),
+            extraction: ExtractionState(remaining: arena.extraction.countdownTicks),
             encounters: encounters,
             gates: gates,
             eliteDefeated: false,
@@ -1128,7 +1128,7 @@ public struct Simulation: Equatable, Sendable {
             state.extraction.wasInside = true
         } else if state.extraction.wasInside {
             let previous = state.extraction.remaining
-            state.extraction.remaining = 300
+            state.extraction.remaining = state.arena.extraction.countdownTicks
             state.extraction.wasInside = false
             events.emit(
                 tick: tick,
@@ -1434,6 +1434,14 @@ public struct Simulation: Equatable, Sendable {
 
     mutating func testing_setExtractionRemaining(_ value: Int) {
         state.extraction.remaining = max(0, value)
+    }
+
+    mutating func testing_armExtraction() {
+        state.extraction.armed = true
+    }
+
+    mutating func testing_setExtractionWasInside(_ value: Bool) {
+        state.extraction.wasInside = value
     }
 
     mutating func testing_setExposure(_ value: Int) {
