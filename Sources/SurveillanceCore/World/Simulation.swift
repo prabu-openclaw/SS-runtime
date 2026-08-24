@@ -1,0 +1,1038 @@
+public struct Simulation: Equatable, Sendable {
+    public private(set) var state: WorldState
+    private var events = EventBuffer()
+
+    public init(seed: UInt64, arena: ArenaManifest, content: CombatContent) {
+        var allocator = EntityAllocator()
+        let playerID = allocator.next()
+        let cameras = CameraPlacement.select(
+            sockets: arena.cameraSockets,
+            geometry: arena.standardCameraGeometry,
+            runSeed: seed,
+            allocator: &allocator
+        ) ?? []
+        var encounters: [String: EncounterRuntime] = [:]
+        for id in EncounterDirector.encounterOrder {
+            encounters[id] = EncounterRuntime(
+                id: id,
+                activated: false,
+                completed: false,
+                waveIndex: 0,
+                spawnQueue: [],
+                nextSpawnTick: 0,
+                deferTicks: 0,
+                living: 0,
+                spawned: 0,
+                cleanupTick: nil
+            )
+        }
+        let gates = arena.gates.map {
+            GateState(id: $0.id, closed: $0.initiallyClosed ?? false, box: $0.aabb)
+        }
+        state = WorldState(
+            identity: .current,
+            seed: seed,
+            clock: SimulationClock(),
+            combatRng: .combat(runSeed: seed),
+            allocator: allocator,
+            outcome: .playing,
+            failureReason: nil,
+            diagnostic: nil,
+            player: PlayerBody(
+                id: playerID,
+                spawn: VecI(x: arena.playerSpawn.x, y: arena.playerSpawn.y)
+            ),
+            cameras: cameras,
+            enemies: [],
+            projectiles: [],
+            mines: [],
+            exposure: ExposureState(),
+            upgrade: UpgradeState(),
+            extraction: ExtractionState(),
+            encounters: encounters,
+            gates: gates,
+            eliteDefeated: false,
+            bossDefeated: false,
+            bossPhase: nil,
+            phasesReached: [],
+            combat: CombatTotals(),
+            destructions: [],
+            lastPulseTick: 0,
+            networkBlackout: false,
+            arena: arena,
+            content: content
+        )
+        events.emit(
+            tick: 0,
+            phase: 18,
+            type: .runStarted,
+            payload: ["seed": .unsigned(seed)]
+        )
+        _ = events.publish()
+    }
+
+    public static func make(seed: UInt64) throws -> Simulation {
+        try Simulation(seed: seed, arena: ArenaManifest.bundled(), content: .bundled())
+    }
+
+    public mutating func restart() {
+        self = Simulation(seed: state.seed, arena: state.arena, content: state.content)
+    }
+
+    public var isTerminal: Bool {
+        switch state.outcome {
+        case .success, .failure, .invalid: true
+        default: false
+        }
+    }
+
+    @discardableResult
+    public mutating func step(command incoming: PlayerCommand?) -> TickResult {
+        if isTerminal {
+            return TickResult(tick: state.tick, events: [], digest: state.digest(), outcome: state.outcome)
+        }
+
+        if state.upgrade.pending {
+            guard let command = incoming,
+                  let index = command.upgradeChoiceIndex,
+                  command.moveX == 0,
+                  command.moveY == 0,
+                  command.dodgePressed == false
+            else {
+                return TickResult(tick: state.tick, events: [], digest: state.digest(), outcome: .upgradeSelectionPending)
+            }
+            applyUpgrade(index)
+        }
+
+        state.clock.advance()
+        let tick = state.tick
+        let command: PlayerCommand
+        if let incoming {
+            if incoming.tick != tick {
+                invalidate(.lateOrFutureCommand)
+                return finishTick()
+            }
+            command = incoming
+        } else {
+            command = .neutral(tick: tick)
+        }
+
+        if state.upgrade.pending {
+            return TickResult(tick: state.tick, events: [], digest: state.digest(), outcome: .upgradeSelectionPending)
+        }
+
+        Movement.apply(
+            player: &state.player,
+            command: command,
+            tick: tick,
+            ghostStep: state.upgrade.ghostStep,
+            bounds: state.arena.boundsUnits.aabb,
+            solids: state.liveSolids,
+            events: &events
+        )
+
+        var pulses: [Int] = []
+        EnemySystem.step(
+            enemies: &state.enemies,
+            player: state.player,
+            tick: tick,
+            content: state.content,
+            bounds: state.arena.boundsUnits.aabb,
+            solids: state.liveSolids,
+            allocator: &state.allocator,
+            projectiles: &state.projectiles,
+            mines: &state.mines,
+            exposurePulses: &pulses
+        )
+
+        let contacts = Detection.sampleContacts(
+            cameras: &state.cameras,
+            player: state.player,
+            tick: tick,
+            solids: state.liveSolids
+        )
+
+        fireCivicPulseIfNeeded(tick: tick)
+
+        moveProjectilesAndCollectHits(tick: tick)
+
+        let destroyedThisTick = resolveDamage(tick: tick)
+        let survivingContacts = contacts.filter { id in
+            !destroyedThisTick.contains(id) && state.cameras.contains { $0.entityId == id && $0.isDamageable }
+        }
+
+        resolvePlayerDeathAndContact(tick: tick)
+        if state.outcome == .failure {
+            return finishTick()
+        }
+
+        var forceLockdown = false
+        advanceEncounters(tick: tick, forceLockdown: &forceLockdown)
+
+        let tamper = state.destructions.filter { $0.tick == tick }.sorted { $0.cameraId < $1.cameraId }.map { _ in 100 }
+        let resolution = state.exposure.resolveTick(
+            survivingContactCount: survivingContacts.count,
+            tamperAmounts: tamper,
+            signalJammer: state.upgrade.signalJammer,
+            forceLockdown: forceLockdown
+        )
+        emitExposure(resolution, tick: tick)
+
+        for pulse in pulses {
+            let amount = state.upgrade.signalJammer ? IntMath.divHalfAway(Int64(pulse) * 75, 100) : Int64(pulse)
+            let before = state.exposure.exposure
+            if !state.exposure.lockdownEntered {
+                state.exposure.exposure = min(1000, state.exposure.exposure + Int(amount))
+                if state.exposure.exposure > state.exposure.peak {
+                    state.exposure.peak = state.exposure.exposure
+                }
+                state.exposure.detectionState = DetectionState.projected(state.exposure.exposure)
+                if state.exposure.exposure >= 1000 && !state.exposure.lockdownEntered {
+                    state.exposure.lockdownEntered = true
+                    state.exposure.detectionState = .lockdown
+                    events.emit(
+                        tick: tick,
+                        phase: 13,
+                        type: .lockdownEntered,
+                        payload: ["reason": .string("fogPulse")]
+                    )
+                }
+                events.emit(
+                    tick: tick,
+                    phase: 13,
+                    type: .exposureChanged,
+                    payload: [
+                        "before": .integer(Int64(before)),
+                        "after": .integer(Int64(state.exposure.exposure)),
+                        "reason": .string(ExposureReason.fogPulse.rawValue)
+                    ]
+                )
+            }
+        }
+
+        resolveObjectives(tick: tick)
+        resolveExtraction(tick: tick)
+        return finishTick()
+    }
+
+    public mutating func run(commands: [PlayerCommand], untilTick: UInt64? = nil) -> TickResult {
+        var last = TickResult(tick: 0, events: [], digest: state.digest(), outcome: state.outcome)
+        var index = 0
+        let limit = untilTick ?? (commands.last?.tick ?? 0)
+        while !isTerminal && state.tick < limit {
+            let nextTick = state.tick + 1
+            var command: PlayerCommand?
+            if index < commands.count, commands[index].tick == nextTick {
+                command = commands[index]
+                index += 1
+            }
+            last = step(command: command)
+        }
+        return last
+    }
+
+    public static func execute(_ envelope: ReplayEnvelope) -> Result<TickResult, ReplayLoadError> {
+        switch envelope.identity.compatibility() {
+        case .compatible:
+            break
+        case .incompatible(let expected, let received):
+            return .failure(.incompatibleIdentity(expected: expected, received: received))
+        }
+        do {
+            var sim = try Simulation.make(seed: envelope.seed)
+            let last = sim.run(commands: envelope.commands, untilTick: envelope.commands.last?.tick)
+            if let expected = envelope.expectedFinalDigest, expected != last.digest {
+                return .success(
+                    TickResult(
+                        tick: last.tick,
+                        events: last.events,
+                        digest: last.digest,
+                        outcome: .invalid
+                    )
+                )
+            }
+            return .success(last)
+        } catch {
+            return .failure(.invalidJSON)
+        }
+    }
+
+    private mutating func applyUpgrade(_ index: UInt8) {
+        let upgrade = UpgradeID.from(index: index)
+        state.upgrade.selected = upgrade
+        state.upgrade.pending = false
+        state.outcome = .playing
+        events.emit(
+            tick: state.tick,
+            phase: 2,
+            type: .upgradeSelected,
+            payload: [
+                "upgradeId": .string(upgrade.rawValue),
+                "selectionIndex": .integer(Int64(index))
+            ]
+        )
+    }
+
+    private mutating func fireCivicPulseIfNeeded(tick: UInt64) {
+        guard tick >= Targeting.firstOpportunity, tick % UInt64(Targeting.cadence) == 0 else { return }
+        let livePlayerShots = state.projectiles.filter { $0.alive && ($0.kind == .civicPulse || $0.kind == .ricochet) }.count
+        guard livePlayerShots < Targeting.activeCeiling else { return }
+        guard let target = Targeting.select(
+            player: state.player,
+            enemies: state.enemies,
+            cameras: state.cameras,
+            solids: state.liveSolids
+        ) else { return }
+
+        let targetVelocity: VecQ8
+        if let enemy = state.enemies.first(where: { $0.id == target.0 }) {
+            targetVelocity = enemy.velocity
+        } else {
+            targetVelocity = .zero
+        }
+        let velocity = Targeting.aimVelocity(from: state.player.position, to: target.1, targetVelocity: targetVelocity)
+        let id = state.allocator.next()
+        state.projectiles.append(
+            ProjectileBody(
+                id: id,
+                ownerId: state.player.id,
+                kind: .civicPulse,
+                position: state.player.position + velocity,
+                previous: state.player.position,
+                velocity: velocity,
+                radius: Targeting.projectileRadius,
+                damage: Targeting.enemyDamage,
+                cameraDamage: Targeting.cameraDamage,
+                age: 1,
+                lifetime: Targeting.projectileLifetime,
+                distanceTravelledQ8: IntMath.isqrt(velocity.lengthSquaredRaw),
+                maxTravelQ8: Int64(Targeting.maxTravel) * Q8.scale,
+                hitEntityIds: [],
+                alive: true
+            )
+        )
+        events.emit(
+            tick: tick,
+            phase: 7,
+            type: .weaponFired,
+            primary: id,
+            secondary: target.0,
+            payload: [
+                "weaponId": .string("civicPulse"),
+                "targetEntityId": .string(target.0.decimalString)
+            ]
+        )
+        state.lastPulseTick = tick
+    }
+
+    private mutating func moveProjectilesAndCollectHits(tick: UInt64) {
+        for i in state.projectiles.indices where state.projectiles[i].alive {
+            if state.projectiles[i].age > 1 {
+                state.projectiles[i].previous = state.projectiles[i].position
+                state.projectiles[i].position = state.projectiles[i].position + state.projectiles[i].velocity
+                state.projectiles[i].distanceTravelledQ8 += IntMath.isqrt(state.projectiles[i].velocity.lengthSquaredRaw)
+            }
+            state.projectiles[i].age += 1
+            let pos = state.projectiles[i].position
+            if pos.x.raw < 0 || pos.y.raw < 0
+                || pos.x.raw > Int64(state.arena.boundsUnits.maxX) * Q8.scale
+                || pos.y.raw > Int64(state.arena.boundsUnits.maxY) * Q8.scale
+                || state.projectiles[i].age > state.projectiles[i].lifetime
+                || state.projectiles[i].distanceTravelledQ8 > state.projectiles[i].maxTravelQ8
+            {
+                state.projectiles[i].alive = false
+            }
+        }
+        _ = tick
+    }
+
+    private mutating func resolveDamage(tick: UInt64) -> Set<EntityID> {
+        struct Hit: Equatable {
+            var t: Int64
+            var target: EntityID
+            var projectile: EntityID
+            var isCamera: Bool
+            var isWall: Bool
+            var index: Int
+        }
+        var hits: [Hit] = []
+        for (pIndex, projectile) in state.projectiles.enumerated() where projectile.alive {
+            var wallT: Int64?
+            for solid in state.liveSolids {
+                if Collision.segmentIntersects(projectile.previous, projectile.position, box: solid.box) {
+                    wallT = 0
+                }
+            }
+            if let wallT {
+                hits.append(Hit(t: wallT, target: EntityID(0), projectile: projectile.id, isCamera: false, isWall: true, index: pIndex))
+            }
+            if projectile.kind == .civicPulse || projectile.kind == .ricochet {
+                for enemy in state.enemies where enemy.alive && !projectile.hitEntityIds.contains(enemy.id) {
+                    if let t = Collision.sweepCircleTime(
+                        from: projectile.previous,
+                        to: projectile.position,
+                        radius: projectile.radius,
+                        target: enemy.position,
+                        targetRadius: enemy.radius
+                    ) {
+                        hits.append(Hit(t: t, target: enemy.id, projectile: projectile.id, isCamera: false, isWall: false, index: pIndex))
+                    }
+                }
+                for camera in state.cameras where camera.isDamageable && !projectile.hitEntityIds.contains(camera.entityId) {
+                    if let t = Collision.sweepCircleTime(
+                        from: projectile.previous,
+                        to: projectile.position,
+                        radius: projectile.radius,
+                        target: camera.targetAnchor,
+                        targetRadius: camera.hitRadius
+                    ) {
+                        hits.append(Hit(t: t, target: camera.entityId, projectile: projectile.id, isCamera: true, isWall: false, index: pIndex))
+                    }
+                }
+            } else if projectile.kind == .sutroBolt || projectile.kind == .bossBolt {
+                if let t = Collision.sweepCircleTime(
+                    from: projectile.previous,
+                    to: projectile.position,
+                    radius: projectile.radius,
+                    target: state.player.position,
+                    targetRadius: PlayerBody.radiusUnits
+                ) {
+                    hits.append(Hit(t: t, target: state.player.id, projectile: projectile.id, isCamera: false, isWall: false, index: pIndex))
+                }
+            }
+        }
+
+        hits.sort {
+            if $0.t != $1.t { return $0.t < $1.t }
+            if $0.isWall != $1.isWall { return $0.isWall && !$1.isWall }
+            if $0.target != $1.target { return $0.target < $1.target }
+            return $0.projectile < $1.projectile
+        }
+
+        var consumed = Set<EntityID>()
+        var destroyed = Set<EntityID>()
+        var ricochetFrom: [(ProjectileBody, VecQ8, EntityID)] = []
+
+        for hit in hits {
+            guard state.projectiles[hit.index].alive, !consumed.contains(hit.projectile) else { continue }
+            if hit.isWall {
+                state.projectiles[hit.index].alive = false
+                consumed.insert(hit.projectile)
+                continue
+            }
+            if hit.target == state.player.id {
+                applyPlayerDamage(hit.projectile, amount: state.projectiles[hit.index].damage, tick: tick)
+                state.projectiles[hit.index].alive = false
+                consumed.insert(hit.projectile)
+                continue
+            }
+            if let eIndex = state.enemies.firstIndex(where: { $0.id == hit.target }) {
+                guard state.enemies[eIndex].alive else { continue }
+                let amount = min(state.projectiles[hit.index].damage, state.enemies[eIndex].integrity)
+                state.enemies[eIndex].integrity -= amount
+                state.combat.damageDealt += amount
+                events.emit(
+                    tick: tick,
+                    phase: 9,
+                    type: .projectileHit,
+                    primary: hit.projectile,
+                    secondary: hit.target,
+                    payload: [
+                        "projectileId": .string(hit.projectile.decimalString),
+                        "targetEntityId": .string(hit.target.decimalString),
+                        "appliedDamage": .integer(Int64(amount))
+                    ]
+                )
+                events.emit(
+                    tick: tick,
+                    phase: 9,
+                    type: .entityDamaged,
+                    primary: hit.target,
+                    payload: [
+                        "entityId": .string(hit.target.decimalString),
+                        "amount": .integer(Int64(amount)),
+                        "remainingIntegrity": .integer(Int64(state.enemies[eIndex].integrity))
+                    ]
+                )
+                state.projectiles[hit.index].hitEntityIds.append(hit.target)
+                if state.enemies[eIndex].integrity <= 0 {
+                    killEnemy(at: eIndex, tick: tick)
+                }
+                if state.upgrade.ricochetPulse && state.projectiles[hit.index].kind == .civicPulse {
+                    ricochetFrom.append((state.projectiles[hit.index], state.enemies[eIndex].position, hit.target))
+                }
+                state.projectiles[hit.index].alive = false
+                consumed.insert(hit.projectile)
+                continue
+            }
+            if let cIndex = state.cameras.firstIndex(where: { $0.entityId == hit.target }) {
+                guard state.cameras[cIndex].isDamageable else { continue }
+                let before = state.cameras[cIndex].integrity
+                state.cameras[cIndex].integrity -= 1
+                events.emit(
+                    tick: tick,
+                    phase: 9,
+                    type: .cameraIntegrityChanged,
+                    primary: hit.target,
+                    payload: [
+                        "cameraId": .string(hit.target.decimalString),
+                        "before": .integer(Int64(before)),
+                        "after": .integer(Int64(state.cameras[cIndex].integrity))
+                    ]
+                )
+                events.emit(
+                    tick: tick,
+                    phase: 9,
+                    type: .projectileHit,
+                    primary: hit.projectile,
+                    secondary: hit.target,
+                    payload: [
+                        "projectileId": .string(hit.projectile.decimalString),
+                        "targetEntityId": .string(hit.target.decimalString),
+                        "appliedDamage": .integer(1)
+                    ]
+                )
+                if state.cameras[cIndex].integrity == 0 {
+                    destroyed.insert(hit.target)
+                    destroyCamera(at: cIndex, projectile: hit.projectile, tick: tick)
+                }
+                if state.upgrade.ricochetPulse && state.projectiles[hit.index].kind == .civicPulse {
+                    ricochetFrom.append((state.projectiles[hit.index], state.cameras[cIndex].targetAnchor, hit.target))
+                }
+                state.projectiles[hit.index].alive = false
+                consumed.insert(hit.projectile)
+            }
+        }
+
+        for (source, origin, excluded) in ricochetFrom {
+            spawnRicochet(from: source, origin: origin, excluding: excluded, tick: tick)
+        }
+        return destroyed
+    }
+
+    private mutating func spawnRicochet(from source: ProjectileBody, origin: VecQ8, excluding: EntityID, tick: UInt64) {
+        struct Candidate { var id: EntityID; var distSq: Int64; var anchor: VecQ8 }
+        var list: [Candidate] = []
+        let range = Int64(Targeting.ricochetRange) * Q8.scale
+        for enemy in state.enemies where enemy.alive && enemy.id != excluding {
+            let distSq = origin.distanceSquared(to: enemy.position)
+            if distSq <= range * range, Collision.lineOfFireClear(from: origin, to: enemy.position, solids: state.liveSolids) {
+                list.append(Candidate(id: enemy.id, distSq: distSq, anchor: enemy.position))
+            }
+        }
+        for camera in state.cameras where camera.isDamageable && camera.entityId != excluding {
+            let distSq = origin.distanceSquared(to: camera.targetAnchor)
+            if distSq <= range * range, Collision.lineOfFireClear(from: origin, to: camera.targetAnchor, solids: state.liveSolids) {
+                list.append(Candidate(id: camera.entityId, distSq: distSq, anchor: camera.targetAnchor))
+            }
+        }
+        list.sort {
+            if $0.distSq != $1.distSq { return $0.distSq < $1.distSq }
+            return $0.id < $1.id
+        }
+        guard let next = list.first else { return }
+        let velocity = Targeting.direct(from: origin, to: next.anchor, speed: Int64(Targeting.projectileSpeedPerTick) * Q8.scale)
+        state.projectiles.append(
+            ProjectileBody(
+                id: source.id,
+                ownerId: source.ownerId,
+                kind: .ricochet,
+                position: origin + velocity,
+                previous: origin,
+                velocity: velocity,
+                radius: source.radius,
+                damage: source.damage,
+                cameraDamage: source.cameraDamage,
+                age: 1,
+                lifetime: Targeting.projectileLifetime,
+                distanceTravelledQ8: 0,
+                maxTravelQ8: range,
+                hitEntityIds: source.hitEntityIds,
+                alive: true
+            )
+        )
+        _ = tick
+    }
+
+    private mutating func destroyCamera(at index: Int, projectile: EntityID, tick: UInt64) {
+        let camera = state.cameras[index]
+        let before = state.exposure.exposure
+        events.emit(
+            tick: tick,
+            phase: 10,
+            type: .cameraDestroyed,
+            primary: camera.entityId,
+            payload: [
+                "cameraId": .string(camera.entityId.decimalString),
+                "socketId": .string(camera.socketId),
+                "projectileId": .string(projectile.decimalString),
+                "wasDetecting": .bool(camera.wasDetecting)
+            ]
+        )
+        state.destructions.append(
+            CameraDestructionRecord(
+                cameraId: camera.entityId,
+                tick: tick,
+                housingFamily: camera.housingFamily,
+                wasDetectingPlayer: camera.wasDetecting,
+                source: "baseProjectile",
+                exposureBefore: before,
+                exposureAfter: min(1000, before + 100),
+                triggeredLockdown: before + 100 >= 1000 && !state.exposure.lockdownEntered
+            )
+        )
+        if state.destructions.count == 8 && !state.networkBlackout {
+            state.networkBlackout = true
+            events.emit(
+                tick: tick,
+                phase: 10,
+                type: .allCamerasDestroyed,
+                payload: ["destroyedCount": .integer(8), "totalCount": .integer(8)]
+            )
+        }
+    }
+
+    private mutating func killEnemy(at index: Int, tick: UInt64) {
+        let enemy = state.enemies[index]
+        events.emit(
+            tick: tick,
+            phase: 10,
+            type: .entityDied,
+            primary: enemy.id,
+            payload: [
+                "entityId": .string(enemy.id.decimalString),
+                "archetypeId": .string(enemy.archetype.rawValue)
+            ]
+        )
+        state.combat.defeatsByArchetype[enemy.archetype.rawValue, default: 0] += 1
+        if let encounter = state.encounters[enemy.encounterId] {
+            var updated = encounter
+            updated.living = max(0, updated.living - 1)
+            state.encounters[enemy.encounterId] = updated
+        }
+        if enemy.archetype == .improperSearchDaemon {
+            state.eliteDefeated = true
+            events.emit(
+                tick: tick,
+                phase: 16,
+                type: .eliteDefeated,
+                payload: ["eliteId": .string(enemy.archetype.rawValue)]
+            )
+            if let gate = state.gates.firstIndex(where: { $0.id == "gate-elite-forward" }) {
+                state.gates[gate].closed = false
+            }
+        }
+        if enemy.archetype == .algorithmicModerate {
+            state.bossDefeated = true
+            events.emit(
+                tick: tick,
+                phase: 16,
+                type: .bossDefeated,
+                payload: ["bossId": .string(enemy.archetype.rawValue)]
+            )
+            if let gate = state.gates.firstIndex(where: { $0.id == "gate-boss-extraction" }) {
+                state.gates[gate].closed = false
+            }
+        }
+    }
+
+    private mutating func applyPlayerDamage(_ source: EntityID, amount: Int, tick: UInt64) {
+        let applied = min(amount, state.player.integrity)
+        state.player.integrity -= applied
+        state.player.damageTaken += applied
+        events.emit(
+            tick: tick,
+            phase: 12,
+            type: .playerDamaged,
+            primary: state.player.id,
+            secondary: source,
+            payload: [
+                "amount": .integer(Int64(applied)),
+                "remainingIntegrity": .integer(Int64(state.player.integrity)),
+                "sourceEntityId": .string(source.decimalString)
+            ]
+        )
+        if state.player.integrity <= 0 {
+            fail(.playerDeath, tick: tick)
+        }
+    }
+
+    private mutating func resolvePlayerDeathAndContact(tick: UInt64) {
+        var threats: [(dps: Int, id: EntityID)] = []
+        for enemy in state.enemies where enemy.alive {
+            let combined = Int64(PlayerBody.radiusUnits + enemy.radius) * Q8.scale
+            if state.player.position.distanceSquared(to: enemy.position) <= combined * combined {
+                threats.append((enemy.contactDps, enemy.id))
+            }
+        }
+        threats.sort {
+            if $0.dps != $1.dps { return $0.dps > $1.dps }
+            return $0.id < $1.id
+        }
+        let applied = threats.prefix(3)
+        var dps = 0
+        for threat in applied { dps += threat.dps }
+        state.player.contactAccumulator += dps
+        let points = state.player.contactAccumulator / 60
+        state.player.contactAccumulator %= 60
+        if points > 0 {
+            applyPlayerDamage(applied.first?.id ?? state.player.id, amount: points, tick: tick)
+        }
+
+        for i in state.mines.indices {
+            state.mines[i].armRemaining = max(0, state.mines[i].armRemaining - 1)
+            state.mines[i].lifeRemaining -= 1
+        }
+        var remainingMines: [MineBody] = []
+        for mine in state.mines where mine.lifeRemaining > 0 {
+            if mine.armed {
+                let r = Int64(mine.radius) * Q8.scale
+                if state.player.position.distanceSquared(to: mine.position) <= r * r {
+                    applyPlayerDamage(mine.ownerId, amount: mine.damage, tick: tick)
+                    continue
+                }
+            }
+            remainingMines.append(mine)
+        }
+        state.mines = remainingMines
+    }
+
+    private mutating func advanceEncounters(tick: UInt64, forceLockdown: inout Bool) {
+        for trigger in state.arena.encounterTriggers {
+            let id = trigger.encounterId ?? trigger.id
+            if id == "improperSearchDaemon" {
+                if state.encounters["M-A"]?.completed == true,
+                   state.encounters["M-B"]?.completed == true,
+                   state.encounters["M-C"]?.completed == true,
+                   !state.eliteDefeated,
+                   !state.enemies.contains(where: { $0.archetype == .improperSearchDaemon }),
+                   trigger.aabb.contains(VecI(x: state.player.position.x.unitsTruncated, y: state.player.position.y.unitsTruncated))
+                {
+                    spawnElite(tick: tick)
+                }
+                continue
+            }
+            if id == "algorithmicModerate" {
+                if state.eliteDefeated,
+                   !state.bossDefeated,
+                   !state.enemies.contains(where: { $0.archetype == .algorithmicModerate }),
+                   trigger.aabb.contains(VecI(x: state.player.position.x.unitsTruncated, y: state.player.position.y.unitsTruncated))
+                {
+                    spawnBoss(tick: tick)
+                }
+                continue
+            }
+            guard var runtime = state.encounters[id], !runtime.activated else { continue }
+            if trigger.aabb.contains(VecI(x: state.player.position.x.unitsTruncated, y: state.player.position.y.unitsTruncated)) {
+                runtime.activated = true
+                if id == "M-C" { forceLockdown = true }
+                if let spec = state.content.encounters[id], let first = spec.waves.first {
+                    runtime.spawnQueue = flatten(first.members)
+                    runtime.nextSpawnTick = tick + UInt64(first.delay)
+                    events.emit(
+                        tick: tick,
+                        phase: 15,
+                        type: .waveStarted,
+                        payload: ["encounterId": .string(id), "waveId": .string(first.id)]
+                    )
+                }
+                closeForwardGate(for: id)
+                state.encounters[id] = runtime
+            }
+        }
+
+        for id in EncounterDirector.encounterOrder {
+            guard var runtime = state.encounters[id], runtime.activated, !runtime.completed else { continue }
+            if !runtime.spawnQueue.isEmpty, tick >= runtime.nextSpawnTick {
+                let archetype = runtime.spawnQueue.removeFirst()
+                if spawnEnemy(archetype, encounter: id, tick: tick) {
+                    runtime.spawned += 1
+                    runtime.living += 1
+                    runtime.deferTicks = 0
+                    let interval = state.content.encounters[id]?.waves[runtime.waveIndex].interval ?? 30
+                    runtime.nextSpawnTick = tick + UInt64(interval)
+                } else {
+                    runtime.spawnQueue.insert(archetype, at: 0)
+                    runtime.deferTicks += 1
+                    runtime.nextSpawnTick = tick + 30
+                    if runtime.deferTicks >= 300 {
+                        invalidate(.spawnFairnessTimeout)
+                    }
+                }
+            }
+            if runtime.spawnQueue.isEmpty, runtime.living == 0, let spec = state.content.encounters[id] {
+                if runtime.waveIndex + 1 < spec.waves.count {
+                    runtime.waveIndex += 1
+                    let wave = spec.waves[runtime.waveIndex]
+                    runtime.spawnQueue = flatten(wave.members)
+                    runtime.nextSpawnTick = tick + UInt64(wave.delay)
+                    events.emit(
+                        tick: tick,
+                        phase: 15,
+                        type: .waveStarted,
+                        payload: ["encounterId": .string(id), "waveId": .string(wave.id)]
+                    )
+                } else if runtime.spawned >= spec.totals {
+                    runtime.completed = true
+                    events.emit(
+                        tick: tick,
+                        phase: 15,
+                        type: .mobEncounterCompleted,
+                        payload: ["encounterId": .string(id)]
+                    )
+                    if id == "M-A" {
+                        state.upgrade.pending = true
+                        state.outcome = .upgradeSelectionPending
+                    }
+                }
+            }
+            state.encounters[id] = runtime
+        }
+    }
+
+    private func flatten(_ members: [WaveMember]) -> [ArchetypeID] {
+        var result: [ArchetypeID] = []
+        for member in members {
+            result.append(contentsOf: repeatElement(member.archetype, count: member.count))
+        }
+        return result
+    }
+
+    private mutating func spawnEnemy(_ archetype: ArchetypeID, encounter: String, tick: UInt64) -> Bool {
+        guard let stats = state.content.standardEnemies[archetype] else { return false }
+        guard let sockets = state.arena.enemySpawnSockets[encounter] else { return false }
+        let playerPos = state.player.position
+        let ranked = sockets.sorted { a, b in
+            let da = playerPos.distanceSquared(to: VecI(x: a.x, y: a.y).asQ8)
+            let db = playerPos.distanceSquared(to: VecI(x: b.x, y: b.y).asQ8)
+            if da != db { return da > db }
+            return (a.id ?? "").utf8LessThan(b.id ?? "")
+        }
+        guard let socket = ranked.first else { return false }
+        let id = state.allocator.next()
+        var nextSpecial = tick
+        switch archetype {
+        case .fogAnalyticsCloud: nextSpecial = tick + 120
+        case .cableCarCorrelator: nextSpecial = tick + 90
+        case .sutroSignalWitch: nextSpecial = tick + 60
+        case .victorianVendor: nextSpecial = tick + 90
+        default: break
+        }
+        state.enemies.append(
+            EnemyBody(
+                id: id,
+                archetype: archetype,
+                position: VecI(x: socket.x, y: socket.y).asQ8,
+                velocity: .zero,
+                integrity: stats.hp,
+                radius: stats.radius,
+                speedUnitsPerSecond: stats.speed,
+                contactDps: stats.contactDps,
+                state: .pursue,
+                stateTicks: 0,
+                spawnTick: tick,
+                nextSpecialTick: nextSpecial,
+                lockPosition: nil,
+                encounterId: encounter
+            )
+        )
+        return true
+    }
+
+    private mutating func spawnElite(tick: UInt64) {
+        let spawn = state.arena.eliteSpawn
+        let id = state.allocator.next()
+        state.enemies.append(
+            EnemyBody(
+                id: id,
+                archetype: .improperSearchDaemon,
+                position: VecI(x: spawn.x, y: spawn.y).asQ8,
+                velocity: .zero,
+                integrity: state.content.eliteHP,
+                radius: state.content.eliteRadius,
+                speedUnitsPerSecond: state.content.eliteSpeed,
+                contactDps: state.content.eliteContactDps,
+                state: .pursue,
+                stateTicks: 120,
+                spawnTick: tick,
+                nextSpecialTick: tick + UInt64(state.content.eliteSpawnDelay),
+                lockPosition: nil,
+                encounterId: "elite"
+            )
+        )
+        events.emit(tick: tick, phase: 16, type: .eliteActivated, payload: ["eliteId": .string(ArchetypeID.improperSearchDaemon.rawValue)])
+    }
+
+    private mutating func spawnBoss(tick: UInt64) {
+        let spawn = state.arena.bossSpawn
+        let id = state.allocator.next()
+        state.enemies.append(
+            EnemyBody(
+                id: id,
+                archetype: .algorithmicModerate,
+                position: VecI(x: spawn.x, y: spawn.y).asQ8,
+                velocity: .zero,
+                integrity: state.content.bossHP,
+                radius: state.content.bossRadius,
+                speedUnitsPerSecond: state.content.bossSpeed,
+                contactDps: state.content.bossContactDps,
+                state: .pursue,
+                stateTicks: 0,
+                spawnTick: tick,
+                nextSpecialTick: tick + UInt64(state.content.bossInitialDelay),
+                lockPosition: nil,
+                encounterId: "boss"
+            )
+        )
+        state.bossPhase = "publicSafety"
+        state.phasesReached = ["publicSafety"]
+        events.emit(tick: tick, phase: 16, type: .bossActivated, payload: ["bossId": .string(ArchetypeID.algorithmicModerate.rawValue)])
+        events.emit(
+            tick: tick,
+            phase: 16,
+            type: .bossPhaseChanged,
+            payload: [
+                "before": .null,
+                "after": .string("publicSafety"),
+                "remainingIntegrity": .integer(Int64(state.content.bossHP))
+            ]
+        )
+        if let gate = state.gates.firstIndex(where: { $0.id == "gate-mc-forward" }) {
+            state.gates[gate].closed = true
+        }
+    }
+
+    private mutating func closeForwardGate(for encounter: String) {
+        let id: String?
+        switch encounter {
+        case "M-A": id = "gate-ma-forward"
+        case "M-B": id = "gate-mb-forward"
+        case "M-C": id = "gate-mc-forward"
+        default: id = nil
+        }
+        guard let id, let index = state.gates.firstIndex(where: { $0.id == id }) else { return }
+        let box = state.gates[index].box
+        if Circle(center: state.player.position, radiusUnits: PlayerBody.radiusUnits).penetrates(box) {
+            return
+        }
+        state.gates[index].closed = true
+    }
+
+    private mutating func resolveObjectives(tick: UInt64) {
+        if !state.extraction.armed,
+           state.encounters["M-A"]?.completed == true,
+           state.encounters["M-B"]?.completed == true,
+           state.encounters["M-C"]?.completed == true,
+           state.eliteDefeated,
+           state.bossDefeated,
+           state.player.isAlive,
+           state.outcome != .failure
+        {
+            state.extraction.armed = true
+            events.emit(tick: tick, phase: 16, type: .extractionArmed)
+        }
+    }
+
+    private mutating func resolveExtraction(tick: UInt64) {
+        guard state.extraction.armed, state.outcome == .playing || state.outcome == .upgradeSelectionPending else { return }
+        let inside = state.arena.extraction.aabb.contains(
+            VecI(x: state.player.position.x.unitsTruncated, y: state.player.position.y.unitsTruncated)
+        )
+        if inside {
+            if state.extraction.remaining > 0 {
+                state.extraction.remaining -= 1
+                events.emit(
+                    tick: tick,
+                    phase: 17,
+                    type: .extractionCountdownChanged,
+                    payload: ["remainingTicks": .integer(Int64(state.extraction.remaining))]
+                )
+            }
+            if state.extraction.remaining == 0 && state.player.isAlive {
+                succeed(tick: tick)
+            }
+            state.extraction.wasInside = true
+        } else if state.extraction.wasInside {
+            let previous = state.extraction.remaining
+            state.extraction.remaining = 300
+            state.extraction.wasInside = false
+            events.emit(
+                tick: tick,
+                phase: 17,
+                type: .extractionReset,
+                payload: ["previousRemainingTicks": .integer(Int64(previous))]
+            )
+        }
+    }
+
+    private mutating func emitExposure(_ resolution: ExposureState.Resolution, tick: UInt64) {
+        if resolution.after != resolution.before {
+            events.emit(
+                tick: tick,
+                phase: 13,
+                type: .exposureChanged,
+                payload: [
+                    "before": .integer(Int64(resolution.before)),
+                    "after": .integer(Int64(resolution.after)),
+                    "reason": .string(resolution.reason.rawValue)
+                ]
+            )
+        }
+        if resolution.stateAfter != resolution.stateBefore {
+            events.emit(
+                tick: tick,
+                phase: 14,
+                type: .detectionStateChanged,
+                payload: [
+                    "before": .string(resolution.stateBefore.rawValue),
+                    "after": .string(resolution.stateAfter.rawValue)
+                ]
+            )
+        }
+        if resolution.lockdownEnteredThisTick {
+            events.emit(
+                tick: tick,
+                phase: 14,
+                type: .lockdownEntered,
+                payload: ["reason": .string(resolution.reason.rawValue)]
+            )
+        }
+    }
+
+    private mutating func succeed(tick: UInt64) {
+        state.outcome = .success
+        events.emit(
+            tick: tick,
+            phase: 18,
+            type: .runSucceeded,
+            payload: ["finalDigest": .string(state.digest())]
+        )
+    }
+
+    private mutating func fail(_ reason: FailureReason, tick: UInt64) {
+        state.outcome = .failure
+        state.failureReason = reason
+        events.emit(
+            tick: tick,
+            phase: 18,
+            type: .runFailed,
+            payload: ["reason": .string(reason.rawValue)]
+        )
+    }
+
+    private mutating func invalidate(_ code: DiagnosticCode) {
+        state.outcome = .invalid
+        state.diagnostic = code
+        events.emit(
+            tick: state.tick,
+            phase: 18,
+            type: .diagnosticFailure,
+            payload: ["code": .string(code.rawValue)]
+        )
+    }
+
+    private mutating func finishTick() -> TickResult {
+        let published = events.publish()
+        return TickResult(tick: state.tick, events: published, digest: state.digest(), outcome: state.outcome)
+    }
+}

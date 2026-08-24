@@ -1,0 +1,91 @@
+public struct RunReceipt: Equatable, Sendable {
+    public var schemaVersion: String
+    public var identity: ReplayIdentity
+    public var seed: UInt64
+    public var outcome: RunOutcome
+    public var elapsedTicks: UInt64
+    public var finalDigest: String
+    public var playerIntegrity: Int
+    public var damageTaken: Int
+    public var exposureFinal: Int
+    public var exposurePeak: Int
+    public var detection: DetectionState
+    public var lockdownEntered: Bool
+    public var damageDealt: Int
+    public var defeatsByArchetype: [String: Int]
+    public var camerasDestroyed: Int
+    public var networkBlackout: Bool
+    public var upgrade: UpgradeID?
+    public var bossPhases: [String]
+    public var bossDefeated: Bool
+    public var extractionArmed: Bool
+    public var diagnostics: [String]
+
+    public init(_ state: WorldState) {
+        schemaVersion = "run-receipt-001"
+        identity = state.identity
+        seed = state.seed
+        outcome = state.outcome
+        elapsedTicks = state.tick
+        finalDigest = state.digest()
+        playerIntegrity = state.player.integrity
+        damageTaken = state.player.damageTaken
+        exposureFinal = state.exposure.exposure
+        exposurePeak = state.exposure.peak
+        detection = state.exposure.detectionState
+        lockdownEntered = state.exposure.lockdownEntered
+        damageDealt = state.combat.damageDealt
+        defeatsByArchetype = state.combat.defeatsByArchetype
+        camerasDestroyed = state.destructions.count
+        networkBlackout = state.networkBlackout
+        upgrade = state.upgrade.selected
+        bossPhases = state.phasesReached
+        bossDefeated = state.bossDefeated
+        extractionArmed = state.extraction.armed
+        diagnostics = state.diagnostic.map { [$0.rawValue] } ?? []
+    }
+
+    public func canonical() -> CanonicalJSON {
+        .object([
+            "schemaVersion": .string(schemaVersion),
+            "identity": .object([
+                "rulesetVersion": .string(identity.rulesetVersion),
+                "contentVersion": .string(identity.contentVersion),
+                "arenaVersion": .string(identity.arenaVersion),
+                "replaySchemaVersion": .string(identity.replaySchemaVersion)
+            ]),
+            "seed": .unsigned(seed),
+            "outcome": .string(outcome == .success ? "success" : outcome == .failure ? "failure" : "invalid"),
+            "elapsedTicks": .unsigned(elapsedTicks),
+            "finalDigest": .string(finalDigest),
+            "player": .object([
+                "finalIntegrity": .integer(Int64(playerIntegrity)),
+                "damageTaken": .integer(Int64(damageTaken))
+            ]),
+            "exposure": .object([
+                "final": .integer(Int64(exposureFinal)),
+                "peak": .integer(Int64(exposurePeak)),
+                "finalState": .string(detection.rawValue),
+                "lockdownEntered": .bool(lockdownEntered)
+            ]),
+            "combat": .object([
+                "damageDealt": .integer(Int64(damageDealt)),
+                "defeatsByArchetype": .object(defeatsByArchetype.mapValues { .integer(Int64($0)) })
+            ]),
+            "objectives": .object([
+                "networkBlackout": .object([
+                    "camerasDestroyed": .integer(Int64(camerasDestroyed)),
+                    "camerasTotal": .integer(8),
+                    "complete": .bool(networkBlackout)
+                ]),
+                "extraction": .object(["armed": .bool(extractionArmed)])
+            ]),
+            "upgrade": upgrade.map { .string($0.rawValue) } ?? .null,
+            "boss": .object([
+                "phasesReached": .array(bossPhases.map { .string($0) }),
+                "defeated": .bool(bossDefeated)
+            ]),
+            "diagnostics": .array(diagnostics.map { .string($0) })
+        ])
+    }
+}

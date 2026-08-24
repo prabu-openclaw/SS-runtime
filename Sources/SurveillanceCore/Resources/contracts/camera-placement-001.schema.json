@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/scrimshawlife-ctrl/SS-specs/contracts/camera-placement-001.schema.json",
+  "title": "Civic Seam Camera Socket Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["cameraPlacementVersion", "arenaVersion", "sockets"],
+  "properties": {
+    "cameraPlacementVersion": {"const": "camera-placement-001"},
+    "arenaVersion": {"const": "civic-seam-arena-001"},
+    "sockets": {
+      "type": "array",
+      "minItems": 18,
+      "items": {"$ref": "#/$defs/socket"}
+    }
+  },
+  "$defs": {
+    "point": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y"],
+      "properties": {
+        "x": {"type": "integer"},
+        "y": {"type": "integer"}
+      }
+    },
+    "socket": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["socketId", "zoneId", "position", "headingMilliDegrees", "rangeUnits", "fieldAngleMilliDegrees", "allowedHousingFamilies", "tutorialEligible", "returnVisible", "enabled", "incompatibleSocketIds"],
+      "properties": {
+        "socketId": {"type": "string", "pattern": "^cam-z0[2-6]-[a-z][a-z0-9-]*$"},
+        "zoneId": {"enum": ["Z-02", "Z-03", "Z-04", "Z-05", "Z-06"]},
+        "position": {"$ref": "#/$defs/point"},
+        "headingMilliDegrees": {"type": "integer", "minimum": 0, "maximum": 359999},
+        "rangeUnits": {"type": "integer", "minimum": 1},
+        "fieldAngleMilliDegrees": {"type": "integer", "exclusiveMinimum": 0, "maximum": 180000},
+        "allowedHousingFamilies": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"enum": ["municipalDome", "storefrontCamera", "trafficReader", "ornamentalCivicCamera", "temporarySensorMast"]}},
+        "tutorialEligible": {"type": "boolean"},
+        "returnVisible": {"type": "boolean"},
+        "enabled": {"type": "boolean"},
+        "incompatibleSocketIds": {"type": "array", "uniqueItems": true, "items": {"type": "string"}}
+      }
+    }
+  }
+}

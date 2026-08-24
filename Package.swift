@@ -8,7 +8,14 @@ let package = Package(
         .library(name: "SurveillanceCore", targets: ["SurveillanceCore"])
     ],
     targets: [
-        .target(name: "SurveillanceCore"),
+        .target(
+            name: "SurveillanceCore",
+            resources: [
+                .copy("Resources/contracts"),
+                .copy("Resources/fixtures"),
+                .copy("Resources/SPEC_PIN.txt")
+            ]
+        ),
         .testTarget(name: "SurveillanceCoreTests", dependencies: ["SurveillanceCore"])
     ]
 )

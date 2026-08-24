@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/scrimshawlife-ctrl/SS-specs/contracts/runtime-kernel-001.json",
+  "title": "Surveillance Survivor Runtime Kernel Envelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "rulesetVersion", "contentVersion", "arenaVersion", "seed", "commands"],
+  "properties": {
+    "schemaVersion": {"const": "runtime-kernel-001"},
+    "rulesetVersion": {"const": "ss-rules-001"},
+    "contentVersion": {"const": "civic-seam-content-001"},
+    "arenaVersion": {"const": "civic-seam-arena-001"},
+    "seed": {"type": "integer", "minimum": 0},
+    "commands": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/command"}
+    },
+    "expectedFinalDigest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "$defs": {
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tick", "moveX", "moveY", "dodgePressed"],
+      "properties": {
+        "tick": {"type": "integer", "minimum": 1},
+        "moveX": {"type": "integer", "minimum": -32767, "maximum": 32767},
+        "moveY": {"type": "integer", "minimum": -32767, "maximum": 32767},
+        "dodgePressed": {"type": "boolean"},
+        "upgradeChoiceIndex": {"type": ["integer", "null"], "minimum": 0, "maximum": 2}
+      }
+    }
+  }
+}

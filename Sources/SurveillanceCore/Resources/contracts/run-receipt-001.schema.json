@@ -1,0 +1,26 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://github.com/scrimshawlife-ctrl/SS-specs/contracts/run-receipt-001.schema.json",
+  "title":"Surveillance Survivor Run Receipt",
+  "type":"object",
+  "additionalProperties":false,
+  "required":["schemaVersion","identity","seed","outcome","elapsedTicks","finalDigest","player","exposure","combat","objectives","cameraPlacement","cameraDestructions","upgrade","boss","diagnostics"],
+  "properties":{
+    "schemaVersion":{"const":"run-receipt-001"},
+    "identity":{"type":"object","required":["rulesetVersion","contentVersion","arenaVersion","replaySchemaVersion"]},
+    "seed":{"type":"integer","minimum":0},
+    "outcome":{"enum":["success","failure","invalid"]},
+    "elapsedTicks":{"type":"integer","minimum":0},
+    "finalDigest":{"type":"string","pattern":"^[0-9a-f]{64}$"},
+    "player":{"type":"object","required":["finalIntegrity","damageTaken"]},
+    "exposure":{"type":"object","required":["final","peak","finalState","lockdownEntered"]},
+    "combat":{"type":"object","required":["damageDealt","defeatsByArchetype"]},
+    "objectives":{"type":"object","required":["combatAuthority","networkBlackout","extraction"]},
+    "cameraPlacement":{"type":"object","required":["version","selectedSockets"]},
+    "cameraDestructions":{"type":"array"},
+    "upgrade":{"type":["object","null"]},
+    "boss":{"type":"object","required":["phasesReached","defeated"]},
+    "diagnostics":{"type":"array"},
+    "presentation":{"type":"object"}
+  }
+}
