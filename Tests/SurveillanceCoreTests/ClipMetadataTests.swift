@@ -15,9 +15,10 @@ struct ClipMetadataTests {
         let anticipateStates = ClipCatalog.distinctEnemyAnticipateIds.compactMap { catalog.clipsById[$0]?.state }
         let cameraDirections = catalog.clips.filter { $0.actorRole == "camera" }.map(\.directions)
         let dodgeFramesLookLikeEvent = dodge.frameIds.contains("dodgeStarted")
+        let camerasHaveNoDirections = cameraDirections.allSatisfy { $0.isEmpty }
+        let destroyDurationMs = destroy.frameIds.count * 1000 / destroy.framesPerSecond
         #expect(catalog.schemaVersion == ContractVersions.clipMetadata)
         #expect(catalog.animationVersion == ContractVersions.animation)
-        let destroyDurationMs = destroy.frameIds.count * 1000 / destroy.framesPerSecond
         #expect(ids == ClipCatalog.requiredClipIds)
         #expect(dodge.directions == ClipCatalog.fourDirections)
         #expect(dodge.authoritativeEventMarker == EventType.dodgeStarted.rawValue)
@@ -32,7 +33,7 @@ struct ClipMetadataTests {
         #expect(idle.authoritativeEventMarker == "none")
         #expect(idle.eventType == nil)
         #expect(Set(anticipateStates).count == 5)
-        #expect(cameraDirections.allSatisfy(\.isEmpty))
+        #expect(camerasHaveNoDirections)
     }
 
     @Test func clipCatalogUnknownSchemaFailsClosed() throws {
