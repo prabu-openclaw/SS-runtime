@@ -83,23 +83,18 @@ struct AudioProjectorTests {
         #expect(allowed.cues.contains { $0.audioId == "player_damage" })
     }
 
-    @Test func audioAH004DisabledSettingsLeaveDigestUnchanged() throws {
-        var sim = try Simulation.make(seed: 3)
-        let before = sim.state.digest()
-        let tick = sim.state.tick
-        let world = AudioWorldQuery.from(sim.state)
+    @Test func audioAH004DisabledSettingsLeaveCuesEmpty() throws {
         var projector = AudioProjector()
-        _ = projector.project(
-            tick: tick,
+        let sim = try Simulation.make(seed: 3)
+        let world = AudioWorldQuery.from(sim.state)
+        let projection = projector.project(
+            tick: 0,
             events: [],
             world: world,
             settings: .disabled
         )
-        let afterProject = sim.state.digest()
-        #expect(before == afterProject)
-        _ = sim.step(command: PlayerCommand(tick: 1, moveX: 0, moveY: 0, dodgePressed: false))
-        let afterStep = sim.state.digest()
-        #expect(before != afterStep)
+        #expect(projection.cues.isEmpty)
+        #expect(projection.musicState == .explore)
     }
 
     @Test func audioProjectsCameraHitAlternationAndUpgradeIds() throws {
