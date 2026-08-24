@@ -20,7 +20,6 @@ let package = Package(
             name: "SurveillanceCoreTests",
             dependencies: ["SurveillanceCore"],
             exclude: [
-                "VisualLanguageTests.swift",
                 "AssetIntakeTests.swift",
                 "AudioProjectorTests.swift",
                 "ArenaReachabilityTests.swift"
