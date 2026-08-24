@@ -98,6 +98,8 @@ final class GameSession {
 final class GameScene: SKScene {
     private let session = GameSession()
     private let instrumentation = RunInstrumentation()
+    private let deviceRunTracker = DeviceRunTracker()
+    private var terminalEvidenceStored = false
     private let worldNode = SKNode()
     private let cameraNode = SKCameraNode()
     private let hudNode = SKNode()
@@ -127,7 +129,29 @@ final class GameScene: SKScene {
         instrumentation.frameTimes.recordFrame(timestamp: currentTime)
         session.step()
         instrumentation.recordSimulation(session.simulation.state)
+        persistDeviceEvidenceIfNeeded()
         redraw()
+    }
+
+    private func persistDeviceEvidenceIfNeeded() {
+        guard !terminalEvidenceStored, session.simulation.state.outcome != .playing else { return }
+        terminalEvidenceStored = true
+        deviceRunTracker.noteTerminalOutcome(session.simulation.state.outcome)
+        let snapshot = instrumentation.evidence()
+        let deviceEvidence = snapshot.makeDeviceRunEvidence(
+            deviceClass: "iPhone 12",
+            consecutiveCompleteRuns: deviceRunTracker.consecutiveCompleteRuns,
+            atlasMemoryBytes: snapshot.device.residentMemoryBytes
+        )
+        _ = try? ReleaseEvidenceStore.exportDeviceRunEvidence(deviceEvidence)
+        if deviceRunTracker.consecutiveCompleteRuns >= 3,
+           let simulationCeilings = try? D021CeilingEvaluator.profileAndMeasure(),
+           let settled = deviceEvidence.settledD021Ceilings(from: simulationCeilings) {
+            _ = try? ReleaseEvidenceStore.exportReleaseCandidateEvidence(
+                deviceEvidence: [deviceEvidence],
+                d021DeviceProfiling: settled
+            )
+        }
     }
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {

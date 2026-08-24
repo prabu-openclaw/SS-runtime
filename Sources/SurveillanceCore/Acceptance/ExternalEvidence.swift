@@ -90,6 +90,8 @@ public struct DeviceRunEvidence: Equatable, Sendable {
     public var frameTimePassesGateC: Bool
     public var memoryWarnings: Int
     public var seriousOrCriticalThermalEvents: Int
+    public var residentMemoryBytes: UInt64?
+    public var atlasMemoryBytes: UInt64?
 
     public init(
         taskId: String = "T905",
@@ -97,7 +99,9 @@ public struct DeviceRunEvidence: Equatable, Sendable {
         consecutiveCompleteRuns: Int,
         frameTimePassesGateC: Bool,
         memoryWarnings: Int,
-        seriousOrCriticalThermalEvents: Int
+        seriousOrCriticalThermalEvents: Int,
+        residentMemoryBytes: UInt64? = nil,
+        atlasMemoryBytes: UInt64? = nil
     ) {
         schemaVersion = "device-run-evidence-001"
         self.taskId = taskId
@@ -106,6 +110,37 @@ public struct DeviceRunEvidence: Equatable, Sendable {
         self.frameTimePassesGateC = frameTimePassesGateC
         self.memoryWarnings = memoryWarnings
         self.seriousOrCriticalThermalEvents = seriousOrCriticalThermalEvents
+        self.residentMemoryBytes = residentMemoryBytes
+        self.atlasMemoryBytes = atlasMemoryBytes
+    }
+
+    public func settledD021Ceilings(from simulation: D021Ceilings) -> D021Ceilings? {
+        guard let residentMemoryBytes, let atlasMemoryBytes else { return nil }
+        return simulation.withDeviceProfiling(
+            residentMemoryBytes: residentMemoryBytes,
+            atlasMemoryBytes: atlasMemoryBytes
+        )
+    }
+
+    public static func performanceFloor(
+        deviceClass: String = "iPhone 12",
+        consecutiveCompleteRuns: Int,
+        frameTimePassesGateC: Bool,
+        memoryWarnings: Int,
+        thermalState: String,
+        residentMemoryBytes: UInt64,
+        atlasMemoryBytes: UInt64
+    ) -> DeviceRunEvidence {
+        let thermalEvents = thermalState == "serious" || thermalState == "critical" ? 1 : 0
+        return DeviceRunEvidence(
+            deviceClass: deviceClass,
+            consecutiveCompleteRuns: consecutiveCompleteRuns,
+            frameTimePassesGateC: frameTimePassesGateC,
+            memoryWarnings: memoryWarnings,
+            seriousOrCriticalThermalEvents: thermalEvents,
+            residentMemoryBytes: residentMemoryBytes,
+            atlasMemoryBytes: atlasMemoryBytes
+        )
     }
 
     public func gateResults() -> [GatePassRecord] {
@@ -132,7 +167,9 @@ public struct DeviceRunEvidence: Equatable, Sendable {
             "consecutiveCompleteRuns": .integer(Int64(consecutiveCompleteRuns)),
             "frameTimePassesGateC": .bool(frameTimePassesGateC),
             "memoryWarnings": .integer(Int64(memoryWarnings)),
-            "seriousOrCriticalThermalEvents": .integer(Int64(seriousOrCriticalThermalEvents))
+            "seriousOrCriticalThermalEvents": .integer(Int64(seriousOrCriticalThermalEvents)),
+            "residentMemoryBytes": residentMemoryBytes.map { .unsigned($0) } ?? .null,
+            "atlasMemoryBytes": atlasMemoryBytes.map { .unsigned($0) } ?? .null
         ])
     }
 }
