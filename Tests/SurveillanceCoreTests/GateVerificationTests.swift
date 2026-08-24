@@ -27,8 +27,9 @@ struct GateVerificationTests {
     @Test func gateT902DeviceGatesRequirePhysicalEvidence() {
         #expect(GateRegistry.deviceGateIds.contains("C-001"))
         #expect(GateRegistry.deviceGateIds.contains("C-002"))
-        #expect(GateRegistry.deviceGateIds.contains("C-011"))
+        #expect(GateRegistry.automatedGateIds.contains("C-011"))
         #expect(GateRegistry.evidence(for: "C-001")?.kind == .deviceCapture)
+        #expect(GateRegistry.evidence(for: "C-011")?.kind == .automatedTest)
     }
 
     @Test func gateT902PlaytestGatesMapToT903T904() {

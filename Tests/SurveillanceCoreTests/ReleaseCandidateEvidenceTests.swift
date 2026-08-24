@@ -12,6 +12,8 @@ struct ReleaseCandidateEvidenceTests {
         #expect(evidence.completeRunDigests.count == UpgradeID.allCases.count)
         #expect(evidence.linkedAutomatedGates.contains("B-001"))
         #expect(!evidence.pendingGateIds.isEmpty)
+        #expect(evidence.peakDensityDigest.count == 64)
+        #expect(evidence.d021Ceilings.status == .simulationMeasured)
         #expect(evidence.canonical().sha256Hex().count == 64)
     }
 
@@ -35,6 +37,17 @@ struct ReleaseCandidateEvidenceTests {
         )
         #expect(device.gateResults().contains { $0.gateId == "C-001" && $0.passed })
         #expect(evidence.expansionGateDecision == .notComputable)
+    }
+
+    @Test func evidenceT907SettlesD021WhenDeviceProfilingProvided() throws {
+        let report = try PeakDensityProfiler.profile()
+        let settled = D021Ceilings.fromSimulation(report)
+            .withDeviceProfiling(residentMemoryBytes: 100_000_000, atlasMemoryBytes: 50_000_000)
+        let evidence = try ReleaseCandidateEvidenceCollector.collect(
+            options: ReleaseCandidateEvidenceCollector.Options(d021DeviceProfiling: settled)
+        )
+        #expect(evidence.d021Settled)
+        #expect(evidence.d021Ceilings.isSettled)
     }
 
     @Test func evidenceT907PlaytestEvidenceEvaluatesGates() {
