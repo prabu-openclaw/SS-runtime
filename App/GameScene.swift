@@ -147,15 +147,27 @@ final class GameScene: SKScene {
         if deviceRunTracker.consecutiveCompleteRuns >= 3,
            let simulationCeilings = try? D021CeilingEvaluator.profileAndMeasure(),
            let settled = deviceEvidence.settledD021Ceilings(from: simulationCeilings) {
-            _ = try? ReleaseEvidenceStore.exportReleaseCandidateEvidence(
+            _ = try? ReleaseEvidenceStore.exportReleaseCandidateWithBundledPlaytests(
                 deviceEvidence: [deviceEvidence],
                 d021DeviceProfiling: settled
             )
         }
     }
 
+    func restartRun(seed: UInt64? = nil) {
+        let nextSeed = seed ?? session.simulation.state.seed
+        session.restartRun(seed: nextSeed)
+        instrumentation.reset()
+        terminalEvidenceStored = false
+        redraw()
+    }
+
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard let touch = touches.first else { return }
+        if session.snapshot.outcome != .playing {
+            restartRun()
+            return
+        }
         stickOrigin = touch.location(in: self)
         let local = touch.location(in: hudNode)
         if session.snapshot.upgradePending {

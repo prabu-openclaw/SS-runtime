@@ -26,6 +26,7 @@ enum ReleaseEvidenceStore {
     }
 
     static func exportReleaseCandidateEvidence(
+        playtestEvidence: [PlaytestEvidence] = [],
         deviceEvidence: [DeviceRunEvidence] = [],
         d021DeviceProfiling: D021Ceilings? = nil
     ) throws -> URL {
@@ -33,6 +34,7 @@ enum ReleaseEvidenceStore {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let evidence = try ReleaseCandidateEvidenceCollector.collect(
             options: ReleaseCandidateEvidenceCollector.Options(
+                playtestEvidence: playtestEvidence,
                 deviceEvidence: deviceEvidence,
                 d021DeviceProfiling: d021DeviceProfiling
             )
@@ -41,6 +43,24 @@ enum ReleaseEvidenceStore {
         let url = directory.appendingPathComponent(filename)
         try evidence.canonical().serialize().write(to: url, atomically: true, encoding: .utf8)
         return url
+    }
+
+    static func playtestDirectoryURL() throws -> URL {
+        let directory = try directoryURL().appendingPathComponent("PlaytestSessions", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        return directory
+    }
+
+    static func exportReleaseCandidateWithBundledPlaytests(
+        deviceEvidence: [DeviceRunEvidence] = [],
+        d021DeviceProfiling: D021Ceilings? = nil
+    ) throws -> URL {
+        let playtests = try PlaytestEvidenceLoader.loadAll(from: playtestDirectoryURL())
+        return try exportReleaseCandidateEvidence(
+            playtestEvidence: playtests,
+            deviceEvidence: deviceEvidence,
+            d021DeviceProfiling: d021DeviceProfiling
+        )
     }
 }
 
