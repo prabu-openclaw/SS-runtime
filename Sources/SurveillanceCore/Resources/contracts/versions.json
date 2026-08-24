@@ -27,6 +27,7 @@
     "completenessAudit": "completeness-audit-001",
     "assetRecord": "asset-record-001",
     "kernelVectors": "kernel-vectors-001",
+    "completeRunVectors": "complete-run-vectors-001",
     "smokeReplay": "runtime-kernel-001",
     "animation": "animation-civic-seam-001",
     "clipMetadata": "clip-metadata-001",
