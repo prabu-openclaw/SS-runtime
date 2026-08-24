@@ -4,6 +4,13 @@ import UIKit
 
 final class GameSession {
     private(set) var simulation: Simulation
+    private var cameraHUD = CameraHUDProjector()
+    private(set) var cameraHUDProjection = CameraHUDProjection(
+        notchesVisible: false,
+        notchFilled: [false, false, false],
+        tamperVisible: false,
+        tamperCopy: ""
+    )
     var moveX: Int16 = 0
     var moveY: Int16 = 0
     var dodgePressed = false
@@ -15,9 +22,10 @@ final class GameSession {
 
     func step() {
         let tick = simulation.state.tick + 1
+        let result: TickResult
         if simulation.state.upgrade.pending {
             if let choice = pendingUpgradeChoice {
-                _ = simulation.step(
+                result = simulation.step(
                     command: PlayerCommand(
                         tick: tick,
                         moveX: 0,
@@ -28,18 +36,40 @@ final class GameSession {
                 )
                 pendingUpgradeChoice = nil
             } else {
-                _ = simulation.step(command: nil)
+                result = simulation.step(command: nil)
             }
-            return
-        }
-        _ = simulation.step(
-            command: PlayerCommand(
-                tick: tick,
-                moveX: moveX,
-                moveY: moveY,
-                dodgePressed: dodgePressed
+        } else {
+            result = simulation.step(
+                command: PlayerCommand(
+                    tick: tick,
+                    moveX: moveX,
+                    moveY: moveY,
+                    dodgePressed: dodgePressed
+                )
             )
+        }
+        applyCameraHUD(result)
+    }
+
+    private func applyCameraHUD(_ result: TickResult) {
+        let state = simulation.state
+        let selected = Targeting.select(
+            player: state.player,
+            enemies: state.enemies,
+            cameras: state.cameras,
+            solids: state.liveSolids
         )
+        var query = CameraHUDQuery.none
+        if let selected, let camera = state.cameras.first(where: { $0.entityId == selected.0 }) {
+            query = CameraHUDQuery(
+                targetIntegrity: camera.integrity,
+                damageable: camera.isDamageable,
+                targeted: true,
+                inRange: true,
+                damaged: camera.integrity < 3
+            )
+        }
+        cameraHUDProjection = cameraHUD.project(tick: result.tick, events: result.events, query: query)
     }
 
     var snapshot: PresentationSnapshot {
@@ -213,6 +243,13 @@ final class GameScene: SKScene {
         var hudText = "HP \(snap.playerIntegrity)  EXP \(snap.exposure) \(snap.detection.rawValue.uppercased())"
         if snap.cameraObjectiveVisible {
             hudText += "  \(snap.cameraObjectiveCopy)"
+        }
+        if session.cameraHUDProjection.notchesVisible {
+            let marks = session.cameraHUDProjection.notchFilled.map { $0 ? "|" : "." }.joined()
+            hudText += "  CAM[\(marks)]"
+        }
+        if session.cameraHUDProjection.tamperVisible {
+            hudText += "  \(session.cameraHUDProjection.tamperCopy)"
         }
         let hud = SKLabelNode(text: hudText)
         hud.fontName = "Menlo-Bold"
