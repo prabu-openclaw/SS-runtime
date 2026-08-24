@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import SurveillanceCore
 
@@ -60,4 +61,58 @@ import Testing
     #expect(ra.tick == 1)
     #expect(a.state.cameras.count == 8)
     #expect(PresentationSnapshot(a.state).player.radius == 18)
+}
+
+@Test func arenaAR006CriticalPathAndSpawnAlley() throws {
+    let arena = try ArenaManifest.bundled()
+    #expect(ArenaReachability.geometryInBounds(arena))
+    #expect(ArenaReachability.viewportMatchesContract(arena))
+    #expect(ArenaReachability.requiredPointsClearOfSolids(arena))
+    #expect(ArenaReachability.spawnAlleyProtected(arena))
+    #expect(ArenaReachability.consecutiveZonesConnected(arena))
+    #expect(ArenaReachability.enemySocketsReachable(arena))
+    #expect(ArenaReachability.diagonalSpine(arena))
+    #expect(ArenaReachability.fieldOriginsOutsideSolids(arena))
+}
+
+@Test func arenaAR005ClosedMAGateLeavesEscapeAperture() throws {
+    let arena = try ArenaManifest.bundled()
+    #expect(ArenaReachability.maEscapeOpen(arena))
+}
+
+@Test func arenaAR007BossCorridorRemainsOneHundredNinetyTwoWide() throws {
+    let arena = try ArenaManifest.bundled()
+    #expect(ArenaReachability.bossCorridorClear(arena))
+}
+
+@Test func arenaLayoutDocumentsBossGateSidestep() throws {
+    let arena = try ArenaManifest.bundled()
+    #expect(ArenaReachability.extractionReachable(arena, bossGateClosed: false))
+    // Pinned civic-seam-arena-001.json leaves a 64-unit gap beside gate-boss-extraction
+    // (2048,384) half (96,16) vs phoenix solids. SS-specs is authority; do not widen the gate.
+    #expect(ArenaReachability.extractionReachable(arena, bossGateClosed: true))
+}
+
+@Test func arenaAR010ManifestJSONRoundTrip() throws {
+    let data = SpecBundle.contract("civic-seam-arena-001")
+    let object = try JSONSerialization.jsonObject(with: data)
+    let first = try #require(CanonicalJSON.parse(object))
+    let encoded = first.serialize()
+    let secondObject = try JSONSerialization.jsonObject(with: Data(encoded.utf8))
+    let second = try #require(CanonicalJSON.parse(secondObject))
+    #expect(first.serialize() == second.serialize())
+    #expect(first.sha256Hex() == second.sha256Hex())
+
+    let arena = try ArenaLoader.decodeAndValidate(data)
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = [.sortedKeys]
+    let roundTrip = try encoder.encode(arena)
+    let again = try ArenaLoader.decodeAndValidate(roundTrip)
+    #expect(again == arena)
+}
+
+@Test func arenaAR009LethalDamageBeatsExtractionSuccess() {
+    #expect(IsolatedKernel.extractionVersusDeath(integrity: 0, remainingAfterTick: 0) == .failure)
+    #expect(IsolatedKernel.extractionVersusDeath(integrity: 1, remainingAfterTick: 0) == .success)
+    #expect(IsolatedKernel.extractionVersusDeath(integrity: 1, remainingAfterTick: 1) == .playing)
 }

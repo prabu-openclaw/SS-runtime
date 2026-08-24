@@ -1,3 +1,5 @@
+import Foundation
+
 /// Canonical JSON: UTF-8, sorted object keys, no insignificant whitespace, decimal integers only.
 public enum CanonicalJSON: Equatable, Sendable {
     case object([String: CanonicalJSON])
@@ -16,6 +18,48 @@ public enum CanonicalJSON: Equatable, Sendable {
 
     public func sha256Hex() -> String {
         SHA256.hex(serialize())
+    }
+
+    public static func parse(_ value: Any) -> CanonicalJSON? {
+        switch value {
+        case is NSNull:
+            return .null
+        case let value as Bool:
+            return .bool(value)
+        case let value as String:
+            return .string(value)
+        case let value as [Any]:
+            var items: [CanonicalJSON] = []
+            items.reserveCapacity(value.count)
+            for item in value {
+                guard let parsed = parse(item) else { return nil }
+                items.append(parsed)
+            }
+            return .array(items)
+        case let value as [String: Any]:
+            var fields: [String: CanonicalJSON] = [:]
+            for (key, item) in value {
+                guard let parsed = parse(item) else { return nil }
+                fields[key] = parsed
+            }
+            return .object(fields)
+        case let value as Int:
+            return .integer(Int64(value))
+        case let value as Int64:
+            return .integer(value)
+        case let value as UInt64:
+            return .unsigned(value)
+        case let value as NSNumber:
+            if CFGetTypeID(value) == CFBooleanGetTypeID() {
+                return .bool(value.boolValue)
+            }
+            if value.doubleValue.rounded() == value.doubleValue {
+                return .integer(value.int64Value)
+            }
+            return nil
+        default:
+            return nil
+        }
     }
 
     private func write(to output: inout String) {

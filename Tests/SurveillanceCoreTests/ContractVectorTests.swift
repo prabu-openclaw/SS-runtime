@@ -163,4 +163,5 @@ import Testing
     let z01 = try #require(arena.zones.first { $0.id == "Z-01" })
     #expect(z01.aabb.contains(spawn))
     #expect(!arena.permanentSolids.contains { $0.aabb.contains(spawn) })
+    #expect(ArenaReachability.spawnAlleyProtected(arena))
 }

@@ -59,8 +59,8 @@ public enum CameraPlacement {
         let ordered = chosen.sorted { $0.socketId.utf8LessThan($1.socketId) }
         return ordered.map { socket in
             let heading = socket.headingMilliDegrees
-            let origin = offsetPoint(socket.position, geometry.fieldOriginOffset, heading)
-            let anchor = offsetPoint(socket.position, geometry.targetAnchorOffset, heading)
+            let origin = fieldOrigin(socket: socket, geometry: geometry)
+            let anchor = targetAnchor(socket: socket, geometry: geometry)
             return SelectedCamera(
                 socketId: socket.socketId,
                 entityId: allocator.next(),
@@ -150,6 +150,14 @@ public enum CameraPlacement {
         let families = Set(selected.map { housingBySocket[$0.socketId]! })
         let returnVisible = selected.filter(\.returnVisible).count
         return families.count >= 4 && returnVisible >= 4
+    }
+
+    public static func fieldOrigin(socket: CameraSocket, geometry: StandardCameraGeometry) -> VecQ8 {
+        offsetPoint(socket.position, geometry.fieldOriginOffset, socket.headingMilliDegrees)
+    }
+
+    public static func targetAnchor(socket: CameraSocket, geometry: StandardCameraGeometry) -> VecQ8 {
+        offsetPoint(socket.position, geometry.targetAnchorOffset, socket.headingMilliDegrees)
     }
 
     private static func offsetPoint(_ origin: VecI, _ local: VecI, _ headingMilli: Int) -> VecQ8 {
