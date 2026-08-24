@@ -1,6 +1,6 @@
 import Foundation
 
-public struct ClipAnchor: Equatable, Sendable {
+public struct ClipAnchor: Equatable, Hashable, Sendable {
     public var x: Int
     public var y: Int
 }
@@ -23,6 +23,17 @@ public struct ClipRecord: Equatable, Sendable {
 
     public var eventType: EventType? {
         ClipCatalog.eventType(forMarker: authoritativeEventMarker)
+    }
+
+    public var isTerminal: Bool {
+        blendOrTransition == "terminal"
+    }
+
+    /// Direction subsets are authored; playback must not invent a facing by flipping another.
+    public func frameIds(forDirection direction: String) -> [String] {
+        if directions.isEmpty { return frameIds }
+        let token = "_\(direction)_"
+        return frameIds.filter { $0.contains(token) }
     }
 }
 
@@ -88,6 +99,10 @@ public enum ClipMetadataError: Equatable, Sendable, Error {
     case directions(String)
     case reducedMotion(String)
     case cameraFieldOff
+    case anchorDrift(String)
+    case directionFrames(String)
+    case cancelWindow(String)
+    case terminalCancel(String)
 }
 
 enum ClipCatalogLoader {
@@ -151,6 +166,9 @@ enum ClipCatalogLoader {
         try validateCameraFieldOff(byId)
         try validateActorDirections(clips)
         try validateDistinctEnemyAnticipation(byId)
+        try validateStableAnchors(clips)
+        try validateDirectionFrames(clips)
+        try validateCancelWindows(clips)
         return ClipCatalog(
             schemaVersion: "clip-metadata-001",
             animationVersion: "animation-civic-seam-001",
@@ -251,6 +269,62 @@ enum ClipCatalogLoader {
         }
         if Set(states).count != states.count {
             throw ClipMetadataError.missingRequiredClip("distinctEnemyAnticipate")
+        }
+    }
+
+    private static func validateStableAnchors(_ clips: [ClipRecord]) throws {
+        var byRole: [String: ClipAnchor] = [:]
+        for clip in clips {
+            if let seen = byRole[clip.actorRole], seen != clip.anchor {
+                throw ClipMetadataError.anchorDrift(clip.clipId)
+            }
+            byRole[clip.actorRole] = clip.anchor
+        }
+    }
+
+    private static func validateDirectionFrames(_ clips: [ClipRecord]) throws {
+        for clip in clips {
+            if clip.directions.isEmpty {
+                if clip.frameIds.contains(where: { !$0.contains("_none_") }) {
+                    throw ClipMetadataError.directionFrames(clip.clipId)
+                }
+                continue
+            }
+            var counts: [Int] = []
+            var assigned = 0
+            for direction in clip.directions {
+                let frames = clip.frameIds(forDirection: direction)
+                if frames.isEmpty {
+                    throw ClipMetadataError.directionFrames(clip.clipId)
+                }
+                counts.append(frames.count)
+                assigned += frames.count
+            }
+            if Set(counts).count != 1 || assigned != clip.frameIds.count {
+                throw ClipMetadataError.directionFrames(clip.clipId)
+            }
+        }
+    }
+
+    private static func validateCancelWindows(_ clips: [ClipRecord]) throws {
+        let clipIds = Set(clips.map(\.clipId))
+        var statesByRole: [String: Set<String>] = [:]
+        for clip in clips {
+            statesByRole[clip.actorRole, default: []].insert(clip.state)
+        }
+        for clip in clips {
+            if clip.isTerminal, !clip.cancelWindows.isEmpty {
+                throw ClipMetadataError.terminalCancel(clip.clipId)
+            }
+            let states = statesByRole[clip.actorRole] ?? []
+            for window in clip.cancelWindows {
+                let known = clipIds.contains(window)
+                    || states.contains(window)
+                    || ClipAlignment.interruptTokens.contains(window)
+                if !known {
+                    throw ClipMetadataError.cancelWindow(clip.clipId)
+                }
+            }
         }
     }
 
