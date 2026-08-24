@@ -150,16 +150,16 @@ final class GameScene: SKScene {
         extract.strokeColor = SKColor(white: 0.7, alpha: 0.6)
         worldNode.addChild(extract)
 
-        let player = SKShapeNode(circleOfRadius: CGFloat(snap.player.radius))
-        player.position = CGPoint(x: snap.player.x, y: snap.player.y)
+        let player = SKShapeNode(path: Self.silhouettePath(.playerRing, at: CGPoint(x: snap.player.x, y: snap.player.y)))
         player.fillColor = SKColor(white: 0.92, alpha: 1)
-        player.strokeColor = .clear
+        player.strokeColor = SKColor(white: 1, alpha: 0.7)
+        player.lineWidth = 2
         worldNode.addChild(player)
         for enemy in snap.enemies {
-            let node = SKShapeNode(circleOfRadius: CGFloat(enemy.radius))
-            node.position = CGPoint(x: enemy.x, y: enemy.y)
+            let node = SKShapeNode(path: Self.silhouettePath(enemy.silhouette, at: CGPoint(x: enemy.x, y: enemy.y)))
             node.fillColor = SKColor(white: 0.55, alpha: 1)
-            node.strokeColor = .clear
+            node.strokeColor = SKColor(white: 0.75, alpha: 0.8)
+            node.lineWidth = 1
             worldNode.addChild(node)
         }
         for marker in snap.queryMarkers {
@@ -233,5 +233,17 @@ final class GameScene: SKScene {
             ring.position = CGPoint(x: 0, y: 40)
             hudNode.addChild(ring)
         }
+    }
+
+    private static func silhouettePath(_ silhouette: ActorSilhouette, at origin: CGPoint) -> CGPath {
+        let path = CGMutablePath()
+        let points = silhouette.contour
+        guard let first = points.first else { return path }
+        path.move(to: CGPoint(x: origin.x + CGFloat(first.x), y: origin.y + CGFloat(first.y)))
+        for point in points.dropFirst() {
+            path.addLine(to: CGPoint(x: origin.x + CGFloat(point.x), y: origin.y + CGFloat(point.y)))
+        }
+        path.closeSubpath()
+        return path
     }
 }

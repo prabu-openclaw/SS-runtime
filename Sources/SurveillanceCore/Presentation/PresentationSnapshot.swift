@@ -6,6 +6,7 @@ public struct PresentationSnapshot: Equatable, Sendable {
         public var y: Int
         public var radius: Int
         public var role: String
+        public var silhouette: ActorSilhouette
     }
 
     public struct CameraSprite: Equatable, Sendable {
@@ -51,7 +52,8 @@ public struct PresentationSnapshot: Equatable, Sendable {
             x: state.player.position.x.unitsTruncated,
             y: state.player.position.y.unitsTruncated,
             radius: PlayerBody.radiusUnits,
-            role: "player"
+            role: "player",
+            silhouette: .playerRing
         )
         playerIntegrity = state.player.integrity
         exposure = state.exposure.exposure
@@ -75,7 +77,8 @@ public struct PresentationSnapshot: Equatable, Sendable {
                 x: $0.position.x.unitsTruncated,
                 y: $0.position.y.unitsTruncated,
                 radius: $0.radius,
-                role: $0.archetype.rawValue
+                role: $0.archetype.rawValue,
+                silhouette: ActorSilhouette.enemy($0.archetype)
             )
         }
         extraction = state.arena.extraction.aabb
@@ -102,7 +105,8 @@ public struct PresentationSnapshot: Equatable, Sendable {
                     x: center.x.unitsTruncated,
                     y: center.y.unitsTruncated,
                     radius: DaemonQuery.circleRadius,
-                    role: "daemonQuery"
+                    role: "daemonQuery",
+                    silhouette: .queryApertures
                 )
             }
         }
