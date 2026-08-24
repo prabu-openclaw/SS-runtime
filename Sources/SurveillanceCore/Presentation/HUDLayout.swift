@@ -51,6 +51,17 @@ public enum HUDLayout {
         remainingTicks <= 0 ? 0 : (remainingTicks + 59) / 60
     }
 
+    public static let cameraObjectiveTotal = 8
+    public static let networkBlackoutAccolade = "NETWORK BLACKOUT 8/8"
+
+    public static func cameraObjectiveVisible(destroyed: Int, damaged: Bool, pinned: Bool = false) -> Bool {
+        pinned || damaged || destroyed > 0
+    }
+
+    public static func cameraObjectiveCopy(destroyed: Int, complete: Bool) -> String {
+        complete ? networkBlackoutAccolade : "CAM \(destroyed)/\(cameraObjectiveTotal)"
+    }
+
     private static func reflect(_ rect: HUDRect, _ handedness: Handedness) -> HUDRect {
         handedness == .left ? rect.reflected() : rect
     }

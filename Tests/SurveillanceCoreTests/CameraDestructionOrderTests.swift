@@ -189,4 +189,72 @@ struct CameraDestructionOrderTests {
         #expect(mountMatch)
         #expect(stillPresent == 8)
     }
+
+    @Test func cameraCD012EighthDestructionCompletesNetworkBlackoutOnce() throws {
+        var sim = try Simulation.make(seed: 1)
+        sim.testing_setCamerasIntegrity(1)
+        var blackoutEvents = 0
+        var destroyedCount = 0
+        var totalCount = 0
+        for tick in 1...8 {
+            let result = sim.testing_destroyNextDamageableCamera(tick: UInt64(tick))
+            let events = result.events.filter { $0.type == .allCamerasDestroyed }
+            blackoutEvents += events.count
+            if let event = events.first {
+                destroyedCount = payloadInt(event, "destroyedCount")
+                totalCount = payloadInt(event, "totalCount")
+            }
+        }
+        let camera = sim.state.cameras[0]
+        sim.testing_injectPulseHitting(camera: camera)
+        let extra = sim.step(command: .neutral(tick: 9))
+        let extraBlackout = extra.events.filter { $0.type == .allCamerasDestroyed }.count
+        sim.testing_completeCombatGraph()
+        _ = sim.step(command: .neutral(tick: 10))
+        let destroyed = sim.state.destructions.count
+        let blackout = sim.state.networkBlackout
+        let armed = sim.state.extraction.armed
+        let receipt = RunReceipt(sim.state)
+        let copy = HUDLayout.cameraObjectiveCopy(destroyed: receipt.camerasDestroyed, complete: receipt.networkBlackout)
+        #expect(blackoutEvents == 1)
+        #expect(extraBlackout == 0)
+        #expect(destroyedCount == 8)
+        #expect(totalCount == 8)
+        #expect(destroyed == 8)
+        #expect(blackout)
+        #expect(armed)
+        #expect(receipt.camerasDestroyed == 8)
+        #expect(receipt.networkBlackout)
+        #expect(copy == HUDLayout.networkBlackoutAccolade)
+    }
+
+    @Test func cameraCD014ExtractAtSevenRemainsIncomplete() throws {
+        var sim = try Simulation.make(seed: 1)
+        sim.testing_setCamerasIntegrity(1)
+        for tick in 1...7 {
+            _ = sim.testing_destroyNextDamageableCamera(tick: UInt64(tick))
+        }
+        sim.testing_completeCombatGraph()
+        _ = sim.step(command: .neutral(tick: 8))
+        let extract = sim.state.arena.extraction.center
+        sim.testing_setPlayerPosition(VecI(x: extract.x, y: extract.y))
+        sim.testing_setExtractionRemaining(1)
+        let result = sim.step(command: .neutral(tick: 9))
+        let outcome = result.outcome
+        let destroyed = sim.state.destructions.count
+        let blackout = sim.state.networkBlackout
+        let receipt = RunReceipt(sim.state)
+        let copy = HUDLayout.cameraObjectiveCopy(destroyed: receipt.camerasDestroyed, complete: receipt.networkBlackout)
+        #expect(outcome == .success)
+        #expect(destroyed == 7)
+        #expect(!blackout)
+        #expect(receipt.camerasDestroyed == 7)
+        #expect(!receipt.networkBlackout)
+        #expect(copy == "CAM 7/8")
+    }
+}
+
+private func payloadInt(_ event: AuthoritativeEvent, _ key: String) -> Int {
+    if case .integer(let value)? = event.payload[key] { return Int(value) }
+    return 0
 }

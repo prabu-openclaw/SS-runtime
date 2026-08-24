@@ -1263,6 +1263,24 @@ public struct Simulation: Equatable, Sendable {
         }
     }
 
+    mutating func testing_setCamerasIntegrity(_ value: Int) {
+        for i in state.cameras.indices {
+            state.cameras[i].integrity = value
+        }
+    }
+
+    mutating func testing_destroyNextDamageableCamera(tick: UInt64) -> TickResult {
+        guard let camera = state.cameras.first(where: \.isDamageable) else {
+            return step(command: .neutral(tick: tick))
+        }
+        testing_injectPulseHitting(camera: camera)
+        return step(command: .neutral(tick: tick))
+    }
+
+    mutating func testing_setExtractionRemaining(_ value: Int) {
+        state.extraction.remaining = max(0, value)
+    }
+
     mutating func testing_setExposure(_ value: Int) {
         state.exposure.exposure = value
         state.exposure.peak = max(state.exposure.peak, value)

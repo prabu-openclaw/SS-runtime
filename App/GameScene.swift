@@ -210,7 +210,11 @@ final class GameScene: SKScene {
         bar(HUDLayout.dodge(handedness: snap.handedness), color: SKColor(white: 0.5, alpha: 0.35))
         bar(HUDLayout.pause(), color: SKColor(white: 0.6, alpha: 0.4))
 
-        let hud = SKLabelNode(text: "HP \(snap.playerIntegrity)  EXP \(snap.exposure) \(snap.detection.rawValue.uppercased())  CAM \(snap.camerasDestroyed)/8")
+        var hudText = "HP \(snap.playerIntegrity)  EXP \(snap.exposure) \(snap.detection.rawValue.uppercased())"
+        if snap.cameraObjectiveVisible {
+            hudText += "  \(snap.cameraObjectiveCopy)"
+        }
+        let hud = SKLabelNode(text: hudText)
         hud.fontName = "Menlo-Bold"
         hud.fontSize = 10
         hud.fontColor = SKColor(white: 0.95, alpha: 1)
