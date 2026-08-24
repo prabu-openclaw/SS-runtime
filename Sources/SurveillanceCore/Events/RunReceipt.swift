@@ -20,6 +20,7 @@ public struct RunReceipt: Equatable, Sendable {
     public var bossDefeated: Bool
     public var extractionArmed: Bool
     public var diagnostics: [String]
+    public var destructions: [CameraDestructionRecord]
 
     public init(_ state: WorldState) {
         schemaVersion = "run-receipt-001"
@@ -43,6 +44,10 @@ public struct RunReceipt: Equatable, Sendable {
         bossDefeated = state.bossDefeated
         extractionArmed = state.extraction.armed
         diagnostics = state.diagnostic.map { [$0.rawValue] } ?? []
+        destructions = state.destructions.sorted {
+            if $0.cameraId != $1.cameraId { return $0.cameraId < $1.cameraId }
+            return $0.tick < $1.tick
+        }
     }
 
     public func canonical() -> CanonicalJSON {
@@ -78,7 +83,17 @@ public struct RunReceipt: Equatable, Sendable {
                     "camerasTotal": .integer(8),
                     "complete": .bool(networkBlackout)
                 ]),
-                "extraction": .object(["armed": .bool(extractionArmed)])
+                "extraction": .object(["armed": .bool(extractionArmed)]),
+                "cameraDestructions": .array(destructions.map { record in
+                    .object([
+                        "cameraId": .string(record.cameraId.decimalString),
+                        "tick": .unsigned(record.tick),
+                        "housingFamily": .string(record.housingFamily.rawValue),
+                        "wasDetectingPlayer": .bool(record.wasDetectingPlayer),
+                        "exposureBefore": .integer(Int64(record.exposureBefore)),
+                        "exposureAfter": .integer(Int64(record.exposureAfter))
+                    ])
+                })
             ]),
             "upgrade": upgrade.map { .string($0.rawValue) } ?? .null,
             "boss": .object([

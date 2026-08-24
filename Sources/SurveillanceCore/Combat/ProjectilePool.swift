@@ -35,6 +35,11 @@ public struct ProjectilePool: Equatable, Sendable {
         slots[index] = nil
     }
 
+    public mutating func replace(id: EntityID, with projectile: ProjectileBody) {
+        guard let index = slots.firstIndex(where: { $0?.id == id }) else { return }
+        slots[index] = projectile
+    }
+
     public var live: [ProjectileBody] {
         slots.compactMap { slot in
             guard let projectile = slot, projectile.alive else { return nil }

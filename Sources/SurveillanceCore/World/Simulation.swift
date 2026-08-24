@@ -63,7 +63,9 @@ public struct Simulation: Equatable, Sendable {
             content: content,
             tutorial: TutorialState(),
             bossRuntime: nil,
-            handedness: .right
+            handedness: .right,
+            civicPool: ProjectilePool(),
+            eliteGateOpenTick: nil
         )
         events.emit(
             tick: 0,
@@ -98,6 +100,7 @@ public struct Simulation: Equatable, Sendable {
         if state.upgrade.pending {
             guard let command = incoming,
                   let index = command.upgradeChoiceIndex,
+                  UpgradeID.from(index: index) != nil,
                   command.moveX == 0,
                   command.moveY == 0,
                   command.dodgePressed == false
@@ -138,7 +141,8 @@ public struct Simulation: Equatable, Sendable {
             IsolatedKernel.distanceUnits(previousPosition, state.player.position)
         )
 
-        var pulses: [Int] = []
+        var fogPulses: [Int] = []
+        var enemyPlayerDamage: [(EntityID, Int)] = []
         EnemySystem.step(
             enemies: &state.enemies,
             player: state.player,
@@ -149,8 +153,13 @@ public struct Simulation: Equatable, Sendable {
             allocator: &state.allocator,
             projectiles: &state.projectiles,
             mines: &state.mines,
-            exposurePulses: &pulses
+            exposurePulses: &fogPulses,
+            playerDamage: &enemyPlayerDamage
         )
+        for (source, amount) in enemyPlayerDamage {
+            applyPlayerDamage(source, amount: amount, tick: tick)
+        }
+        var observationPulses: [Int] = []
         if var runtime = state.bossRuntime,
            let index = state.enemies.firstIndex(where: { $0.archetype == .algorithmicModerate && $0.alive })
         {
@@ -167,7 +176,9 @@ public struct Simulation: Equatable, Sendable {
                 projectiles: &state.projectiles,
                 exposurePulse: &pulse,
                 playerDamage: &playerDamage,
-                events: &events
+                events: &events,
+                baseSpeed: state.content.bossSpeed,
+                baseContact: state.content.bossContactDps
             )
             state.bossRuntime = runtime
             state.bossPhase = runtime.phase.rawValue
@@ -175,11 +186,13 @@ public struct Simulation: Equatable, Sendable {
                 state.phasesReached.append(runtime.phase.rawValue)
             }
             if let pulse {
-                var amount = IntMath.divHalfAway(Int64(pulse) * Int64(runtime.observationNumerator), 100)
-                if state.upgrade.signalJammer {
-                    amount = IntMath.divHalfAway(amount * 75, 100)
-                }
-                pulses.append(Int(amount))
+                observationPulses.append(
+                    BossSystem.observationAmount(
+                        base: pulse,
+                        numerator: runtime.observationNumerator,
+                        signalJammer: state.upgrade.signalJammer
+                    )
+                )
             }
             if playerDamage > 0 {
                 applyPlayerDamage(state.enemies[index].id, amount: playerDamage, tick: tick)
@@ -233,37 +246,9 @@ public struct Simulation: Equatable, Sendable {
         )
         emitExposure(resolution, tick: tick)
 
-        for pulse in pulses {
-            let amount = state.upgrade.signalJammer ? IntMath.divHalfAway(Int64(pulse) * 75, 100) : Int64(pulse)
-            let before = state.exposure.exposure
-            if !state.exposure.lockdownEntered {
-                state.exposure.exposure = min(1000, state.exposure.exposure + Int(amount))
-                if state.exposure.exposure > state.exposure.peak {
-                    state.exposure.peak = state.exposure.exposure
-                }
-                state.exposure.detectionState = DetectionState.projected(state.exposure.exposure)
-                if state.exposure.exposure >= 1000 && !state.exposure.lockdownEntered {
-                    state.exposure.lockdownEntered = true
-                    state.exposure.detectionState = .lockdown
-                    events.emit(
-                        tick: tick,
-                        phase: 13,
-                        type: .lockdownEntered,
-                        payload: ["reason": .string("fogPulse")]
-                    )
-                }
-                events.emit(
-                    tick: tick,
-                    phase: 13,
-                    type: .exposureChanged,
-                    payload: [
-                        "before": .integer(Int64(before)),
-                        "after": .integer(Int64(state.exposure.exposure)),
-                        "reason": .string(ExposureReason.fogPulse.rawValue)
-                    ]
-                )
-            }
-        }
+        applyNamedPulses(fogPulses, reason: .fogPulse, tick: tick)
+        applyNamedPulses(observationPulses, reason: .observationPulse, tick: tick)
+        openEliteGateIfDue(tick: tick)
 
         resolveObjectives(tick: tick)
         resolveExtraction(tick: tick)
@@ -313,8 +298,8 @@ public struct Simulation: Equatable, Sendable {
     }
 
     private mutating func applyUpgrade(_ index: UInt8) {
-        let upgrade = UpgradeID.from(index: index)
-            state.upgrade.selected = upgrade
+        guard let upgrade = UpgradeID.from(index: index) else { return }
+        state.upgrade.selected = upgrade
         state.upgrade.pending = false
         state.outcome = .playing
         state.tutorial.noteUpgradeSelected()
@@ -331,8 +316,7 @@ public struct Simulation: Equatable, Sendable {
 
     private mutating func fireCivicPulseIfNeeded(tick: UInt64) {
         guard tick >= Targeting.firstOpportunity, tick % UInt64(Targeting.cadence) == 0 else { return }
-        let livePlayerShots = state.projectiles.filter { $0.alive && ($0.kind == .civicPulse || $0.kind == .ricochet) }.count
-        guard livePlayerShots < Targeting.activeCeiling else { return }
+        guard state.civicPool.liveCount < Targeting.activeCeiling else { return }
         guard let target = Targeting.select(
             player: state.player,
             enemies: state.enemies,
@@ -352,25 +336,25 @@ public struct Simulation: Equatable, Sendable {
         }
         let velocity = Targeting.aimVelocity(from: state.player.position, to: target.1, targetVelocity: targetVelocity)
         let id = state.allocator.next()
-        state.projectiles.append(
-            ProjectileBody(
-                id: id,
-                ownerId: state.player.id,
-                kind: .civicPulse,
-                position: state.player.position + velocity,
-                previous: state.player.position,
-                velocity: velocity,
-                radius: Targeting.projectileRadius,
-                damage: Targeting.enemyDamage,
-                cameraDamage: Targeting.cameraDamage,
-                age: 1,
-                lifetime: Targeting.projectileLifetime,
-                distanceTravelledQ8: IntMath.isqrt(velocity.lengthSquaredRaw),
-                maxTravelQ8: Int64(Targeting.maxTravel) * Q8.scale,
-                hitEntityIds: [],
-                alive: true
-            )
+        let projectile = ProjectileBody(
+            id: id,
+            ownerId: state.player.id,
+            kind: .civicPulse,
+            position: state.player.position + velocity,
+            previous: state.player.position,
+            velocity: velocity,
+            radius: Targeting.projectileRadius,
+            damage: Targeting.enemyDamage,
+            cameraDamage: Targeting.cameraDamage,
+            age: 1,
+            lifetime: Targeting.projectileLifetime,
+            distanceTravelledQ8: IntMath.isqrt(velocity.lengthSquaredRaw),
+            maxTravelQ8: Int64(Targeting.maxTravel) * Q8.scale,
+            hitEntityIds: [],
+            alive: true
         )
+        guard state.civicPool.checkout(projectile) else { return }
+        state.projectiles.append(projectile)
         events.emit(
             tick: tick,
             phase: 7,
@@ -400,7 +384,7 @@ public struct Simulation: Equatable, Sendable {
                 || state.projectiles[i].age > state.projectiles[i].lifetime
                 || state.projectiles[i].distanceTravelledQ8 > state.projectiles[i].maxTravelQ8
             {
-                state.projectiles[i].alive = false
+                retireProjectile(at: i)
             }
         }
         _ = tick
@@ -476,13 +460,13 @@ public struct Simulation: Equatable, Sendable {
         for hit in hits {
             guard state.projectiles[hit.index].alive, !consumed.contains(hit.projectile) else { continue }
             if hit.isWall {
-                state.projectiles[hit.index].alive = false
+                retireProjectile(at: hit.index)
                 consumed.insert(hit.projectile)
                 continue
             }
             if hit.target == state.player.id {
                 applyPlayerDamage(hit.projectile, amount: state.projectiles[hit.index].damage, tick: tick)
-                state.projectiles[hit.index].alive = false
+                retireProjectile(at: hit.index)
                 consumed.insert(hit.projectile)
                 continue
             }
@@ -520,8 +504,10 @@ public struct Simulation: Equatable, Sendable {
                 }
                 if state.upgrade.ricochetPulse && state.projectiles[hit.index].kind == .civicPulse {
                     ricochetFrom.append((state.projectiles[hit.index], state.enemies[eIndex].position, hit.target))
+                    consumed.insert(hit.projectile)
+                    continue
                 }
-                state.projectiles[hit.index].alive = false
+                retireProjectile(at: hit.index)
                 consumed.insert(hit.projectile)
                 continue
             }
@@ -559,8 +545,10 @@ public struct Simulation: Equatable, Sendable {
                 }
                 if state.upgrade.ricochetPulse && state.projectiles[hit.index].kind == .civicPulse {
                     ricochetFrom.append((state.projectiles[hit.index], state.cameras[cIndex].targetAnchor, hit.target))
+                    consumed.insert(hit.projectile)
+                    continue
                 }
-                state.projectiles[hit.index].alive = false
+                retireProjectile(at: hit.index)
                 consumed.insert(hit.projectile)
             }
         }
@@ -591,28 +579,46 @@ public struct Simulation: Equatable, Sendable {
             if $0.distSq != $1.distSq { return $0.distSq < $1.distSq }
             return $0.id < $1.id
         }
-        guard let next = list.first else { return }
+        guard let next = list.first else {
+            if let index = state.projectiles.firstIndex(where: { $0.id == source.id }) {
+                retireProjectile(at: index)
+            }
+            return
+        }
         let velocity = Targeting.direct(from: origin, to: next.anchor, speed: Int64(Targeting.projectileSpeedPerTick) * Q8.scale)
-        state.projectiles.append(
-            ProjectileBody(
-                id: source.id,
-                ownerId: source.ownerId,
-                kind: .ricochet,
-                position: origin + velocity,
-                previous: origin,
-                velocity: velocity,
-                radius: source.radius,
-                damage: source.damage,
-                cameraDamage: source.cameraDamage,
-                age: 1,
-                lifetime: Targeting.projectileLifetime,
-                distanceTravelledQ8: 0,
-                maxTravelQ8: range,
-                hitEntityIds: source.hitEntityIds,
-                alive: true
-            )
+        let ricochet = ProjectileBody(
+            id: source.id,
+            ownerId: source.ownerId,
+            kind: .ricochet,
+            position: origin + velocity,
+            previous: origin,
+            velocity: velocity,
+            radius: source.radius,
+            damage: source.damage,
+            cameraDamage: source.cameraDamage,
+            age: 1,
+            lifetime: Targeting.projectileLifetime,
+            distanceTravelledQ8: 0,
+            maxTravelQ8: range,
+            hitEntityIds: source.hitEntityIds,
+            alive: true
         )
+        if let index = state.projectiles.firstIndex(where: { $0.id == source.id }) {
+            state.projectiles[index] = ricochet
+            state.civicPool.replace(id: source.id, with: ricochet)
+        } else if state.civicPool.checkout(ricochet) {
+            state.projectiles.append(ricochet)
+        }
         _ = tick
+    }
+
+    private mutating func retireProjectile(at index: Int) {
+        guard state.projectiles.indices.contains(index), state.projectiles[index].alive else { return }
+        let projectile = state.projectiles[index]
+        state.projectiles[index].alive = false
+        if projectile.kind == .civicPulse || projectile.kind == .ricochet {
+            state.civicPool.release(id: projectile.id)
+        }
     }
 
     private mutating func destroyCamera(at index: Int, projectile: EntityID, tick: UInt64) {
@@ -673,18 +679,18 @@ public struct Simulation: Equatable, Sendable {
         }
         if enemy.archetype == .improperSearchDaemon {
             state.eliteDefeated = true
+            state.eliteGateOpenTick = tick + 60
             events.emit(
                 tick: tick,
                 phase: 16,
                 type: .eliteDefeated,
                 payload: ["eliteId": .string(enemy.archetype.rawValue)]
             )
-            if let gate = state.gates.firstIndex(where: { $0.id == "gate-elite-forward" }) {
-                state.gates[gate].closed = false
-            }
         }
         if enemy.archetype == .algorithmicModerate {
             state.bossDefeated = true
+            state.bossRuntime?.retireField()
+            BossSystem.retireBossProjectiles(&state.projectiles)
             events.emit(
                 tick: tick,
                 phase: 16,
@@ -693,6 +699,50 @@ public struct Simulation: Equatable, Sendable {
             )
             if let gate = state.gates.firstIndex(where: { $0.id == "gate-boss-extraction" }) {
                 state.gates[gate].closed = false
+            }
+        }
+    }
+
+    private mutating func openEliteGateIfDue(tick: UInt64) {
+        guard let openTick = state.eliteGateOpenTick, tick >= openTick else { return }
+        if let gate = state.gates.firstIndex(where: { $0.id == "gate-elite-forward" }) {
+            state.gates[gate].closed = false
+        }
+        state.eliteGateOpenTick = nil
+    }
+
+    private mutating func applyNamedPulses(_ pulses: [Int], reason: ExposureReason, tick: UInt64) {
+        for pulse in pulses {
+            let amount = reason == .fogPulse && state.upgrade.signalJammer
+                ? Int(IntMath.divHalfAway(Int64(pulse) * 75, 100))
+                : pulse
+            let before = state.exposure.exposure
+            if !state.exposure.lockdownEntered {
+                state.exposure.exposure = min(1000, state.exposure.exposure + amount)
+                if state.exposure.exposure > state.exposure.peak {
+                    state.exposure.peak = state.exposure.exposure
+                }
+                state.exposure.detectionState = DetectionState.projected(state.exposure.exposure)
+                if state.exposure.exposure >= 1000 && !state.exposure.lockdownEntered {
+                    state.exposure.lockdownEntered = true
+                    state.exposure.detectionState = .lockdown
+                    events.emit(
+                        tick: tick,
+                        phase: 13,
+                        type: .lockdownEntered,
+                        payload: ["reason": .string(reason.rawValue)]
+                    )
+                }
+                events.emit(
+                    tick: tick,
+                    phase: 13,
+                    type: .exposureChanged,
+                    payload: [
+                        "before": .integer(Int64(before)),
+                        "after": .integer(Int64(state.exposure.exposure)),
+                        "reason": .string(reason.rawValue)
+                    ]
+                )
             }
         }
     }
@@ -1097,5 +1147,94 @@ public struct Simulation: Equatable, Sendable {
     private mutating func finishTick() -> TickResult {
         let published = events.publish()
         return TickResult(tick: state.tick, events: published, digest: state.digest(), outcome: state.outcome)
+    }
+
+    mutating func testing_armUpgradeSelection() {
+        state.upgrade.pending = true
+        state.outcome = .upgradeSelectionPending
+    }
+
+    mutating func testing_selectUpgrade(_ upgrade: UpgradeID) {
+        state.upgrade.selected = upgrade
+        state.upgrade.pending = false
+        state.outcome = .playing
+    }
+
+    mutating func testing_setExposure(_ value: Int) {
+        state.exposure.exposure = value
+        state.exposure.peak = max(state.exposure.peak, value)
+        state.exposure.detectionState = DetectionState.projected(value)
+    }
+
+    mutating func testing_insertEnemy(_ enemy: EnemyBody) {
+        state.enemies.append(enemy)
+    }
+
+    mutating func testing_completeCombatGraph() {
+        for id in EncounterDirector.encounterOrder {
+            var runtime = state.encounters[id] ?? EncounterRuntime(
+                id: id,
+                activated: true,
+                completed: true,
+                waveIndex: 0,
+                spawnQueue: [],
+                nextSpawnTick: 0,
+                deferTicks: 0,
+                living: 0,
+                spawned: state.content.encounters[id]?.totals ?? 0,
+                cleanupTick: nil
+            )
+            runtime.activated = true
+            runtime.completed = true
+            runtime.spawned = state.content.encounters[id]?.totals ?? runtime.spawned
+            state.encounters[id] = runtime
+        }
+        state.eliteDefeated = true
+        state.bossDefeated = true
+    }
+
+    mutating func testing_spawnInformant(at position: VecI, integrity: Int? = nil, speed: Int? = nil) {
+        let stats = state.content.standardEnemies[.autonomousInformant]!
+        state.enemies.append(
+            EnemyBody(
+                id: state.allocator.next(),
+                archetype: .autonomousInformant,
+                position: position.asQ8,
+                velocity: .zero,
+                integrity: integrity ?? stats.hp,
+                radius: stats.radius,
+                speedUnitsPerSecond: speed ?? stats.speed,
+                contactDps: stats.contactDps,
+                state: .pursue,
+                stateTicks: 0,
+                spawnTick: state.tick,
+                nextSpecialTick: 0,
+                lockPosition: nil,
+                encounterId: "test"
+            )
+        )
+    }
+
+    mutating func testing_fillCivicPool(count: Int) {
+        for _ in 0..<count {
+            let projectile = ProjectileBody(
+                id: state.allocator.next(),
+                ownerId: state.player.id,
+                kind: .civicPulse,
+                position: state.player.position,
+                previous: state.player.position,
+                velocity: .zero,
+                radius: Targeting.projectileRadius,
+                damage: Targeting.enemyDamage,
+                cameraDamage: Targeting.cameraDamage,
+                age: 1,
+                lifetime: 10_000,
+                distanceTravelledQ8: 0,
+                maxTravelQ8: Int64(10_000) * Q8.scale,
+                hitEntityIds: [],
+                alive: true
+            )
+            guard state.civicPool.checkout(projectile) else { return }
+        }
     }
 }

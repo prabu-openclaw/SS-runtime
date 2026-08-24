@@ -153,8 +153,7 @@ public enum Collision {
         if a == 0 {
             return c <= 0 ? 0 : nil
         }
-        let disc = b * b - 4 * a * c
-        if disc < 0 { return nil }
+        guard let disc = IntMath.quadraticDiscriminant(a: a, b: b, c: c) else { return nil }
         let sqrtDisc = IntMath.isqrt(disc)
         let tNum = -b - sqrtDisc
         if tNum < 0 {

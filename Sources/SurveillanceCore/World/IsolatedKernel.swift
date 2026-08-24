@@ -131,4 +131,99 @@ public enum IsolatedKernel {
     public static func distanceUnits(_ a: VecQ8, _ b: VecQ8) -> Int {
         Int(IntMath.isqrt(a.distanceSquared(to: b)) / Q8.scale)
     }
+
+    public static func slideIntoVerticalWall() -> VecQ8 {
+        let wall = AABB(center: VecI(x: 400, y: 256), halfSize: VecI(x: 8, y: 400))
+        var player = PlayerBody(id: EntityID(1), spawn: VecI(x: 256, y: 256))
+        var events = EventBuffer()
+        for tick in 1...UInt64(60) {
+            Movement.apply(
+                player: &player,
+                command: PlayerCommand(
+                    tick: tick,
+                    moveX: PlayerCommand.axisMaximum,
+                    moveY: PlayerCommand.axisMaximum,
+                    dodgePressed: false
+                ),
+                tick: tick,
+                ghostStep: false,
+                bounds: openBounds,
+                solids: [("wall-v", wall)],
+                events: &events
+            )
+        }
+        return player.position
+    }
+
+    public static func daemonCycle(ticks: Int, playerMoves: Bool = false) -> (
+        states: [EnemyAIState],
+        damage: Int,
+        markers: [VecQ8]
+    ) {
+        var enemy = EnemyBody(
+            id: EntityID(2),
+            archetype: .improperSearchDaemon,
+            position: VecI(x: 400, y: 256).asQ8,
+            velocity: .zero,
+            integrity: 300,
+            radius: 26,
+            speedUnitsPerSecond: 108,
+            contactDps: 14,
+            state: .pursue,
+            stateTicks: 120,
+            spawnTick: 0,
+            nextSpecialTick: 0,
+            lockPosition: nil,
+            encounterId: "elite"
+        )
+        var player = PlayerBody(id: EntityID(1), spawn: VecI(x: 256, y: 256))
+        var allocator = EntityAllocator()
+        _ = allocator.next()
+        _ = allocator.next()
+        var projectiles: [ProjectileBody] = []
+        var mines: [MineBody] = []
+        var pulses: [Int] = []
+        var states: [EnemyAIState] = []
+        var totalDamage = 0
+        let content = CombatContent.bundled()
+        for tick in 1...UInt64(ticks) {
+            if playerMoves {
+                player.position = player.position.offset(units: 1, along: VecQ8(unitsX: 1, unitsY: 0))
+            }
+            var enemies = [enemy]
+            var damage: [(EntityID, Int)] = []
+            EnemySystem.step(
+                enemies: &enemies,
+                player: player,
+                tick: tick,
+                content: content,
+                bounds: openBounds,
+                solids: [],
+                allocator: &allocator,
+                projectiles: &projectiles,
+                mines: &mines,
+                exposurePulses: &pulses,
+                playerDamage: &damage
+            )
+            enemy = enemies[0]
+            states.append(enemy.state)
+            totalDamage += damage.reduce(0) { $0 + $1.1 }
+        }
+        return (states, totalDamage, enemy.queryMarkers)
+    }
+
+    public static func ghostStepImmunityTick() -> UInt64 {
+        var player = PlayerBody(id: EntityID(1), spawn: VecI(x: 256, y: 256))
+        var events = EventBuffer()
+        Movement.apply(
+            player: &player,
+            command: PlayerCommand(tick: 100, moveX: PlayerCommand.axisMaximum, moveY: 0, dodgePressed: true),
+            tick: 100,
+            ghostStep: true,
+            bounds: openBounds,
+            solids: [],
+            events: &events
+        )
+        return player.cameraInvisibleUntilTick
+    }
 }

@@ -30,6 +30,8 @@ public struct WorldState: Equatable, Sendable {
     public var tutorial: TutorialState
     public var bossRuntime: BossRuntime?
     public var handedness: Handedness
+    public var civicPool: ProjectilePool
+    public var eliteGateOpenTick: UInt64?
 
     public var tick: UInt64 { clock.tick }
 

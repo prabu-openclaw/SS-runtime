@@ -53,4 +53,12 @@ public enum IntMath {
         let asSigned = Int64(bitPattern: rounded)
         return sign < 0 ? 0 &- asSigned : asSigned
     }
+
+    /// `b² − 4ac` for integer quadratics. Returns nil when negative.
+    public static func quadraticDiscriminant(a: Int64, b: Int64, c: Int64) -> Int64? {
+        let disc = Int128(b) * Int128(b) - 4 * Int128(a) * Int128(c)
+        if disc < 0 { return nil }
+        if disc > Int128(Int64.max) { return Int64.max }
+        return Int64(disc)
+    }
 }

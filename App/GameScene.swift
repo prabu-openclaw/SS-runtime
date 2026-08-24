@@ -162,6 +162,34 @@ final class GameScene: SKScene {
             node.strokeColor = .clear
             worldNode.addChild(node)
         }
+        for marker in snap.queryMarkers {
+            let ring = SKShapeNode(circleOfRadius: CGFloat(marker.radius))
+            ring.position = CGPoint(x: marker.x, y: marker.y)
+            ring.fillColor = .clear
+            ring.strokeColor = SKColor(white: 0.8, alpha: 0.7)
+            ring.lineWidth = 2
+            worldNode.addChild(ring)
+        }
+        if let field = snap.captainField {
+            let path = CGMutablePath()
+            path.move(to: .zero)
+            let half = CGFloat(field.fieldAngleMilli) / 2000 * .pi / 180
+            let heading = CGFloat(field.headingMilli) / 1000 * .pi / 180
+            path.addArc(center: .zero, radius: CGFloat(field.range), startAngle: -heading - half, endAngle: -heading + half, clockwise: false)
+            path.closeSubpath()
+            let node = SKShapeNode(path: path)
+            node.position = CGPoint(x: field.x, y: field.y)
+            node.fillColor = SKColor(white: 0.75, alpha: 0.18)
+            node.strokeColor = .clear
+            worldNode.addChild(node)
+        }
+        for socket in snap.spawnSockets {
+            let dot = SKShapeNode(circleOfRadius: 3)
+            dot.position = CGPoint(x: socket.x, y: socket.y)
+            dot.fillColor = SKColor(white: 0.45, alpha: 0.5)
+            dot.strokeColor = .clear
+            worldNode.addChild(dot)
+        }
         drawHUD(snap)
     }
 
