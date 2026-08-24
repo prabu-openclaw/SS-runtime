@@ -22,6 +22,7 @@ public struct RunReceipt: Equatable, Sendable {
     public var extractionArmed: Bool
     public var diagnostics: [String]
     public var destructions: [CameraDestructionRecord]
+    public var cameraDestructionSummary: CameraDestructionReceiptSummary
     public var cameraPlacementVersion: String
     public var placementSeed: UInt64
     public var selectedSockets: [CameraPlacementReceiptEntry]
@@ -50,9 +51,10 @@ public struct RunReceipt: Equatable, Sendable {
         extractionArmed = state.extraction.armed
         diagnostics = state.diagnostic.map { [$0.rawValue] } ?? []
         destructions = state.destructions.sorted {
-            if $0.cameraId != $1.cameraId { return $0.cameraId < $1.cameraId }
-            return $0.tick < $1.tick
+            if $0.tick != $1.tick { return $0.tick < $1.tick }
+            return $0.cameraId < $1.cameraId
         }
+        cameraDestructionSummary = CameraDestructionReceiptSummary.project(state)
         cameraPlacementVersion = ContractVersions.cameraPlacement
         placementSeed = CameraPlacement.placementSeed(runSeed: state.seed)
         selectedSockets = state.cameras
@@ -121,10 +123,20 @@ public struct RunReceipt: Equatable, Sendable {
                     "tick": .unsigned(record.tick),
                     "housingFamily": .string(record.housingFamily.rawValue),
                     "wasDetectingPlayer": .bool(record.wasDetectingPlayer),
+                    "source": .string(record.source),
                     "exposureBefore": .integer(Int64(record.exposureBefore)),
-                    "exposureAfter": .integer(Int64(record.exposureAfter))
+                    "exposureAfter": .integer(Int64(record.exposureAfter)),
+                    "triggeredLockdown": .bool(record.triggeredLockdown)
                 ])
             }),
+            "camerasDamaged": .integer(Int64(cameraDestructionSummary.camerasDamaged)),
+            "camerasDestroyed": .integer(Int64(cameraDestructionSummary.camerasDestroyed)),
+            "tamperExposureApplied": .integer(Int64(cameraDestructionSummary.tamperExposureApplied)),
+            "cameraObjective": .object([
+                "destroyed": .integer(Int64(cameraDestructionSummary.objectiveDestroyed)),
+                "total": .integer(Int64(cameraDestructionSummary.objectiveTotal)),
+                "complete": .bool(cameraDestructionSummary.objectiveComplete)
+            ]),
             "upgrade": upgrade.map { .string($0.rawValue) } ?? .null,
             "boss": .object([
                 "phasesReached": .array(bossPhases.map { .string($0) }),

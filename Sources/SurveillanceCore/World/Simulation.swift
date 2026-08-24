@@ -555,7 +555,12 @@ public struct Simulation: Equatable, Sendable {
                 state.projectiles[hit.index].hitEntityIds.append(hit.target)
                 if state.cameras[cIndex].integrity == 0 {
                     destroyed.insert(hit.target)
-                    destroyCamera(at: cIndex, projectile: hit.projectile, tick: tick)
+                    destroyCamera(
+                        at: cIndex,
+                        projectileKind: state.projectiles[hit.index].kind,
+                        projectile: hit.projectile,
+                        tick: tick
+                    )
                 }
                 if state.upgrade.ricochetPulse && state.projectiles[hit.index].kind == .civicPulse {
                     ricochetFrom.append((state.projectiles[hit.index], state.cameras[cIndex].targetAnchor, hit.target))
@@ -632,9 +637,15 @@ public struct Simulation: Equatable, Sendable {
         }
     }
 
-    private mutating func destroyCamera(at index: Int, projectile: EntityID, tick: UInt64) {
+    private mutating func destroyCamera(
+        at index: Int,
+        projectileKind: ProjectileKind,
+        projectile: EntityID,
+        tick: UInt64
+    ) {
         let camera = state.cameras[index]
         let before = state.exposure.exposure
+        let source = projectileKind == .ricochet ? "ricochet" : "baseProjectile"
         events.emit(
             tick: tick,
             phase: 10,
@@ -653,7 +664,7 @@ public struct Simulation: Equatable, Sendable {
                 tick: tick,
                 housingFamily: camera.housingFamily,
                 wasDetectingPlayer: camera.wasDetecting,
-                source: "baseProjectile",
+                source: source,
                 exposureBefore: before,
                 exposureAfter: min(1000, before + 100),
                 triggeredLockdown: before + 100 >= 1000 && !state.exposure.lockdownEntered
@@ -1445,7 +1456,7 @@ public struct Simulation: Equatable, Sendable {
     mutating func testing_destroyCameraAtIndex(_ index: Int) {
         guard state.cameras.indices.contains(index), state.cameras[index].isDamageable else { return }
         state.cameras[index].integrity = 0
-        destroyCamera(at: index, projectile: EntityID(0), tick: state.tick + 1)
+        destroyCamera(at: index, projectileKind: .civicPulse, projectile: EntityID(0), tick: state.tick + 1)
     }
 
     mutating func testing_setExtractionRemaining(_ value: Int) {
