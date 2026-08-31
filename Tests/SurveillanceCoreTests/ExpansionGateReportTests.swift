@@ -10,7 +10,10 @@ struct ExpansionGateReportTests {
         #expect(report.openSeverityTwoDefects == 0)
         #expect(!report.d013Settled)
         #expect(!report.d021Settled)
-        #expect(report.pendingGateCount > 0)
+        #expect(
+            report.pendingGateCount
+                == GateRegistry.allGateIds.count - GateRegistry.automatedGateIds.count
+        )
         #expect(report.canonical().sha256Hex().count == 64)
     }
 
@@ -33,6 +36,10 @@ struct ExpansionGateReportTests {
             )
         )
         #expect(report.d021Settled)
+        #expect(
+            report.pendingGateCount
+                == GateRegistry.allGateIds.count - GateRegistry.automatedGateIds.count
+        )
         #expect(report.decision == .notComputable)
     }
 }

@@ -56,11 +56,18 @@ enum ReleaseEvidenceStore {
         d021DeviceProfiling: D021Ceilings? = nil
     ) throws -> URL {
         let playtests = try PlaytestEvidenceLoader.loadAll(from: playtestDirectoryURL())
-        return try exportReleaseCandidateEvidence(
+        let options = ReleaseCandidateEvidenceCollector.Options(
             playtestEvidence: playtests,
             deviceEvidence: deviceEvidence,
             d021DeviceProfiling: d021DeviceProfiling
         )
+        let releaseCandidateURL = try exportReleaseCandidateEvidence(
+            playtestEvidence: playtests,
+            deviceEvidence: deviceEvidence,
+            d021DeviceProfiling: d021DeviceProfiling
+        )
+        _ = try exportExpansionGateReport(options: options)
+        return releaseCandidateURL
     }
 
     static func exportExpansionGateReport(
@@ -80,7 +87,7 @@ extension RunInstrumentation.Evidence {
     func makeDeviceRunEvidence(
         deviceClass: String,
         consecutiveCompleteRuns: Int,
-        atlasMemoryBytes: UInt64
+        atlasMemoryBytes: UInt64?
     ) -> DeviceRunEvidence {
         DeviceRunEvidence.performanceFloor(
             deviceClass: deviceClass,

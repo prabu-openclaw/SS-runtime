@@ -136,7 +136,9 @@ public enum ReleaseCandidateEvidenceCollector {
         }
 
         let linkedAutomated = GateRegistry.automatedGateIds.sorted()
-        let pending = GateRegistry.unmappedGateIds().sorted()
+        let suppliedGateIds = Set(gateResults.map(\.gateId))
+        let requiredGateIds = Set(ExpansionGateEvaluator.requiredGateFamilies.joined())
+        let pending = requiredGateIds.subtracting(suppliedGateIds).sorted()
 
         let decision = ExpansionGateEvaluator.evaluate(
             ExpansionGateInputs(
