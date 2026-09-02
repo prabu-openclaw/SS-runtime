@@ -27,6 +27,15 @@ public struct CameraHUDProjection: Equatable, Sendable {
     public var notchFilled: [Bool]
     public var tamperVisible: Bool
     public var tamperCopy: String
+
+    /// The memberwise initializer is module-internal; the App layer seeds the
+    /// initial projection before the first tick and needs a public one.
+    public init(notchesVisible: Bool, notchFilled: [Bool], tamperVisible: Bool, tamperCopy: String) {
+        self.notchesVisible = notchesVisible
+        self.notchFilled = notchFilled
+        self.tamperVisible = tamperVisible
+        self.tamperCopy = tamperCopy
+    }
 }
 
 /// Presentation-only Integrity notches and Tamper Spike. Does not enter the digest.
