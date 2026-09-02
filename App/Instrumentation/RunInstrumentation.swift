@@ -1,4 +1,5 @@
 import Foundation
+import SurveillanceCore
 import UIKit
 
 /// T900: collects frame-time percentiles from presentation updates.
