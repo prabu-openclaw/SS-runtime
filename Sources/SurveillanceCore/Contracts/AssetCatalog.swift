@@ -35,6 +35,10 @@ public enum AssetAdmissionDecision: String, Equatable, Sendable {
     case rejected
     case sfCandidate
     case plannedOriginal
+    /// legacy-admission.md §Bounded visual and audio admission: a legacy asset
+    /// whose runtime role is unchanged, admitted through the asset-record
+    /// process with a digest that matches the frozen commit.
+    case adaptedAdmitted
 }
 
 public struct AssetDimensions: Equatable, Sendable {
@@ -97,6 +101,7 @@ public enum AssetCatalogError: Equatable, Sendable, Error {
     case duplicateAssetId(String)
     case missingRequiredPresentationId(String)
     case plannedOriginalMismatch(String)
+    case adaptedAdmittedMismatch(String)
 }
 
 enum AssetCatalogLoader {
@@ -218,6 +223,17 @@ enum AssetCatalogLoader {
             if record.runtimeRequired {
                 throw AssetCatalogError.excludedRuntimeRequired(record.assetId)
             }
+        case .adaptedAdmitted:
+            // Admission is only real with complete provenance: the accepted
+            // status above already demands source, runtimePath, sha256, and
+            // license, so here we only pin the shape of the decision itself.
+            guard record.productionStatus == .accepted,
+                  record.provenance == .adaptedLegacy,
+                  record.runtimeRequired,
+                  record.source?.hasPrefix("legacy://") == true
+            else {
+                throw AssetCatalogError.adaptedAdmittedMismatch(record.assetId)
+            }
         case .plannedOriginal:
             guard record.productionStatus == .planned,
                   record.provenance == .projectOriginal,
@@ -229,7 +245,12 @@ enum AssetCatalogLoader {
                 throw AssetCatalogError.plannedOriginalMismatch(record.assetId)
             }
         }
-        if record.runtimeRequired && record.provenance != .projectOriginal {
+        // Only an original, or a legacy asset admitted under the bounded ADAPT
+        // route, may be marked runtime-required.
+        if record.runtimeRequired,
+           record.provenance != .projectOriginal,
+           decision != .adaptedAdmitted
+        {
             throw AssetCatalogError.excludedRuntimeRequired(record.assetId)
         }
         if let runtimePath = record.runtimePath, runtimePath.hasPrefix("ArtSources/") {
@@ -244,13 +265,19 @@ enum AssetCatalogLoader {
         else {
             throw AssetCatalogError.invalidJSON
         }
-        let planned = Dictionary(
-            uniqueKeysWithValues: entries
-                .filter { $0.admissionDecision == .plannedOriginal }
-                .map { ($0.record.assetId, $0.record) }
+        // A required presentation ID is accounted for by a planned original or
+        // by a legacy asset admitted under the bounded ADAPT route. Admission
+        // supersedes the plan for that ID; it does not leave a hole.
+        let covered = Set(
+            entries
+                .filter {
+                    $0.admissionDecision == .plannedOriginal
+                        || $0.admissionDecision == .adaptedAdmitted
+                }
+                .map(\.record.assetId)
         )
         for id in visuals + audio {
-            guard planned[id] != nil else {
+            guard covered.contains(id) else {
                 throw AssetCatalogError.missingRequiredPresentationId(id)
             }
         }

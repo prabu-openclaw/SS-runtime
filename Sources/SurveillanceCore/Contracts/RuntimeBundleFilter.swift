@@ -30,8 +30,28 @@ public enum RuntimeBundleFilter {
         return Set(visuals + audio)
     }
 
+    /// Frame IDs named by `clip-metadata-001`. A frame a clip plays is
+    /// runtime-reachable exactly as a presentation asset ID is, so admitted
+    /// actor frames are eligible for the bundle on the same footing.
+    public static func reachableClipFrameIds(clipJSON: Data) throws -> Set<String> {
+        guard let root = try? JSONSerialization.jsonObject(with: clipJSON) as? [String: Any],
+              let clips = root["clips"] as? [[String: Any]]
+        else {
+            throw AssetCatalogError.invalidJSON
+        }
+        var ids = Set<String>()
+        for clip in clips {
+            guard let frames = clip["frameIds"] as? [String] else {
+                throw AssetCatalogError.invalidJSON
+            }
+            ids.formUnion(frames)
+        }
+        return ids
+    }
+
     public static func reachableAssetIds() throws -> Set<String> {
         try reachableAssetIds(presentationJSON: SpecBundle.contract("presentation-assets-001"))
+            .union(reachableClipFrameIds(clipJSON: SpecBundle.contract("clip-metadata-001")))
     }
 
     public static func project(catalog: AssetCatalog, reachable: Set<String>) -> Projection {
@@ -63,7 +83,7 @@ public enum RuntimeBundleFilter {
                 }
                 continue
             }
-            if entry.admissionDecision != .plannedOriginal {
+            if entry.admissionDecision != .plannedOriginal, entry.admissionDecision != .adaptedAdmitted {
                 if record.runtimePath != nil || record.runtimeRequired {
                     issues.append(.legacyEvidenceInBundle(id))
                 }
@@ -87,7 +107,7 @@ public enum RuntimeBundleFilter {
     }
 
     private static func isBundleEligible(_ entry: AssetCatalogEntry, reachable: Set<String>) -> Bool {
-        entry.admissionDecision == .plannedOriginal
+        (entry.admissionDecision == .plannedOriginal || entry.admissionDecision == .adaptedAdmitted)
             && entry.record.runtimeRequired
             && reachable.contains(entry.record.assetId)
             && entry.record.runtimePath?.hasPrefix("ArtSources/") != true

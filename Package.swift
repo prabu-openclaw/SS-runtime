@@ -12,6 +12,7 @@ let package = Package(
             name: "SurveillanceCore",
             resources: [
                 .copy("Resources/contracts"),
+                .copy("Resources/RuntimeAssets"),
                 .copy("Resources/fixtures"),
                 .copy("Resources/SPEC_PIN.txt")
             ]

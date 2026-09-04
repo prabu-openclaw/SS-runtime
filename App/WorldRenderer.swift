@@ -25,6 +25,12 @@ final class WorldRenderer {
     }
 
     let root = SKNode()
+    /// Admitted clip frames. Empty until assets are admitted, in which case
+    /// every actor keeps its authored blockout.
+    private let sprites = SpriteLibrary()
+    /// Clip currently playing per actor key, so an animation is not restarted
+    /// on every frame.
+    private var activeClips: [String: String] = [:]
     private var layers: [Layer: SKNode] = [:]
     /// Live nodes by layer and stable key, so a key that disappears from the
     /// snapshot has its node removed rather than left on screen.
@@ -50,6 +56,47 @@ final class WorldRenderer {
             nodes[layer] = [:]
         }
         solidSignature = nil
+        activeClips = [:]
+    }
+
+    /// Backed frames over the whole clip contract, for evidence reporting.
+    var spriteCoverage: (backed: Int, total: Int) { sprites.coverage }
+
+    /// Plays `clipId` on a sprite node, or returns false when the clip has no
+    /// admitted art and the caller must fall back to the blockout.
+    private func playClip(
+        _ clipId: String,
+        direction: String?,
+        key: String,
+        at position: CGPoint,
+        boxWidth: CGFloat,
+        boxHeight: CGFloat,
+        layer: Layer
+    ) -> Bool {
+        guard sprites.isBacked(clipId: clipId, direction: direction) else { return false }
+        let node = node(layer, "sprite-\(key)") { () -> SKSpriteNode in
+            SKSpriteNode()
+        }
+        guard let sprite = node as? SKSpriteNode else { return false }
+        sprite.size = CGSize(width: boxWidth, height: boxHeight)
+        sprite.anchorPoint = sprites.anchorPoint(
+            clipId: clipId,
+            boxHeight: boxHeight,
+            boxWidth: boxWidth
+        )
+        sprite.position = position
+
+        let token = "\(clipId)|\(direction ?? "-")"
+        if activeClips[key] != token {
+            activeClips[key] = token
+            sprite.removeAllActions()
+            if let animation = sprites.animation(clipId: clipId, direction: direction) {
+                sprite.run(animation)
+            } else if let texture = sprites.firstTexture(clipId: clipId, direction: direction) {
+                sprite.texture = texture
+            }
+        }
+        return true
     }
 
     // MARK: - Node reuse
@@ -150,13 +197,26 @@ final class WorldRenderer {
 
         for camera in snap.cameras {
             let key = "camera-\(camera.id.raw)"
-            let body = node(.actors, key) {
-                let shape = SKShapeNode(circleOfRadius: 12)
-                shape.strokeColor = .clear
-                return shape
+            let position = CGPoint(x: camera.x, y: camera.y)
+            // clip-metadata-001 names the clip; CameraPresentation picked it.
+            let drawn = playClip(
+                camera.clipId,
+                direction: nil,
+                key: key,
+                at: position,
+                boxWidth: 64,
+                boxHeight: 96,
+                layer: .actors
+            )
+            if !drawn {
+                let body = node(.actors, key) {
+                    let shape = SKShapeNode(circleOfRadius: 12)
+                    shape.strokeColor = .clear
+                    return shape
+                }
+                body.position = position
+                (body as? SKShapeNode)?.fillColor = Palette.cameraFill(camera.presentationState)
             }
-            body.position = CGPoint(x: camera.x, y: camera.y)
-            (body as? SKShapeNode)?.fillColor = Palette.cameraFill(camera.presentationState)
 
             guard camera.fieldVisible else { continue }
             let fieldKey = "field-\(camera.id.raw)"
@@ -253,14 +313,27 @@ final class WorldRenderer {
     }
 
     private func renderActors(_ snap: PresentationSnapshot) {
-        let player = node(.actors, "player") {
-            let shape = SKShapeNode(path: Geometry.silhouettePath(snap.player.silhouette))
-            shape.fillColor = Palette.playerFill
-            shape.strokeColor = Palette.playerStroke
-            shape.lineWidth = 2
-            return shape
+        let playerPosition = CGPoint(x: snap.player.x, y: snap.player.y)
+        // clip-metadata-001 sprite box for the Player.
+        let playerDrawn = playClip(
+            snap.playerClipId,
+            direction: snap.playerDirection,
+            key: "player",
+            at: playerPosition,
+            boxWidth: 64,
+            boxHeight: 64,
+            layer: .actors
+        )
+        if !playerDrawn {
+            let player = node(.actors, "player") {
+                let shape = SKShapeNode(path: Geometry.silhouettePath(snap.player.silhouette))
+                shape.fillColor = Palette.playerFill
+                shape.strokeColor = Palette.playerStroke
+                shape.lineWidth = 2
+                return shape
+            }
+            player.position = playerPosition
         }
-        player.position = CGPoint(x: snap.player.x, y: snap.player.y)
 
         for enemy in snap.enemies {
             let key = "enemy-\(enemy.id.raw)"

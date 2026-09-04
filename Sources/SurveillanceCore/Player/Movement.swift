@@ -21,6 +21,10 @@ public struct PlayerBody: Equatable, Sendable {
     public var rejectedDodges: Int
     public var damageTaken: Int
     public var contactAccumulator: Int
+    /// World units travelled on the last simulated tick. Presentation-supporting
+    /// bookkeeping, like `damageTaken`; it is not part of the state digest and
+    /// no rule reads it.
+    public var movedUnitsLastTick: Int = 0
 
     public init(id: EntityID, spawn: VecI) {
         self.id = id

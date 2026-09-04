@@ -8,22 +8,42 @@ struct AssetCatalogTests {
         let catalog = try AssetCatalog.bundled()
         #expect(catalog.legacyCommit == LegacyEvidence.commit)
         #expect(catalog.specificationCommit == ContractVersions.specificationCommit)
-        #expect(catalog.entries.contains { $0.record.productionStatus == .accepted } == false)
+        // Since the LC-009/LC-010 bounded ADAPT amendment, accepted entries
+        // exist. Every one must be an admitted legacy asset with complete
+        // provenance — nothing may be accepted on any other footing.
+        for entry in catalog.entries where entry.record.productionStatus == .accepted {
+            #expect(entry.admissionDecision == .adaptedAdmitted, "\(entry.record.assetId)")
+            #expect(entry.record.provenance == .adaptedLegacy, "\(entry.record.assetId)")
+            #expect(entry.record.source?.hasPrefix("legacy://") == true, "\(entry.record.assetId)")
+            #expect(entry.record.sha256?.count == 64, "\(entry.record.assetId)")
+            #expect(entry.record.license?.isEmpty == false, "\(entry.record.assetId)")
+            #expect(entry.record.runtimePath?.isEmpty == false, "\(entry.record.assetId)")
+        }
 
         let presentation = try JSONSerialization.jsonObject(
             with: SpecBundle.contract("presentation-assets-001")
         ) as! [String: Any]
         let required = (presentation["requiredAssetIds"] as! [String]) + (presentation["audioEventIds"] as! [String])
         #expect(required.count == 52)
+        // Every required presentation ID is accounted for, either by a planned
+        // original still to be produced or by an admitted legacy asset.
         for id in required {
             let entry = try #require(catalog.entries.first { $0.record.assetId == id })
-            #expect(entry.admissionDecision == .plannedOriginal)
-            #expect(entry.record.runtimeRequired)
-            #expect(entry.record.productionStatus == .planned)
-            #expect(entry.record.provenance == .projectOriginal)
-            #expect(entry.record.source == nil)
-            #expect(entry.record.runtimePath == nil)
-            #expect(entry.record.sha256 == nil)
+            #expect(entry.record.runtimeRequired, "\(id)")
+            switch entry.admissionDecision {
+            case .plannedOriginal:
+                #expect(entry.record.productionStatus == .planned, "\(id)")
+                #expect(entry.record.provenance == .projectOriginal, "\(id)")
+                #expect(entry.record.source == nil, "\(id)")
+                #expect(entry.record.runtimePath == nil, "\(id)")
+                #expect(entry.record.sha256 == nil, "\(id)")
+            case .adaptedAdmitted:
+                #expect(entry.record.productionStatus == .accepted, "\(id)")
+                #expect(entry.record.provenance == .adaptedLegacy, "\(id)")
+                #expect(entry.record.sha256?.count == 64, "\(id)")
+            case .excluded, .rejected, .sfCandidate:
+                Issue.record("required presentation id \(id) is not admissible")
+            }
         }
 
         let sfVisual = catalog.entries.filter {

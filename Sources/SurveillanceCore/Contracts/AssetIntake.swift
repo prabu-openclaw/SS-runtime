@@ -126,9 +126,14 @@ public enum AssetIntake {
         else { return false }
         let parts = base.split(separator: "_", omittingEmptySubsequences: false)
         guard parts.count >= 2 else { return false }
+        // Same character class as the asset ID this name must mirror
+        // (`^[a-z0-9][a-zA-Z0-9_]*$`). clip-metadata-001 states clips in
+        // camelCase, so `actor_camera_criticalEnter_none_01` is a legal ID and
+        // must be a legal delivery name.
+        guard let first = base.first, first.isLowercase || first.isNumber else { return false }
         return parts.allSatisfy { part in
             !part.isEmpty && part.allSatisfy { ch in
-                (ch >= "a" && ch <= "z") || (ch >= "0" && ch <= "9")
+                (ch >= "a" && ch <= "z") || (ch >= "A" && ch <= "Z") || (ch >= "0" && ch <= "9")
             }
         }
     }
