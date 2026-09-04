@@ -100,10 +100,13 @@ final class GameScene: SKScene {
     private let instrumentation = RunInstrumentation()
     private let deviceRunTracker = DeviceRunTracker()
     private var terminalEvidenceStored = false
-    private let worldNode = SKNode()
+    private let renderer = WorldRenderer()
     private let cameraNode = SKCameraNode()
     private let hudNode = SKNode()
     private var stickOrigin: CGPoint?
+#if DEBUG
+    private var autopilot: DebugAutopilot?
+#endif
 
     override func didMove(to view: SKView) {
         backgroundColor = .init(red: 0.055, green: 0.075, blue: 0.10, alpha: 1)
@@ -111,7 +114,7 @@ final class GameScene: SKScene {
         view.ignoresSiblingOrder = true
         size = CGSize(width: CGFloat(PresentationCamera.visibleWidth), height: CGFloat(PresentationCamera.visibleHeight))
         scaleMode = .aspectFit
-        addChild(worldNode)
+        addChild(renderer.root)
         addChild(cameraNode)
         camera = cameraNode
         cameraNode.addChild(hudNode)
@@ -122,11 +125,30 @@ final class GameScene: SKScene {
         ) { [weak self] _ in
             self?.instrumentation.noteMemoryWarning()
         }
+#if DEBUG
+        autopilot = DebugAutopilot.fromLaunchArguments(
+            ProcessInfo.processInfo.arguments,
+            arena: session.simulation.state.arena
+        )
+#endif
         redraw()
     }
 
     override func update(_ currentTime: TimeInterval) {
         instrumentation.frameTimes.recordFrame(timestamp: currentTime)
+#if DEBUG
+        if autopilot != nil {
+            let snapshot = session.snapshot
+            let steer = autopilot!.command(from: VecI(x: snapshot.player.x, y: snapshot.player.y))
+            session.moveX = steer.moveX
+            session.moveY = steer.moveY
+            if snapshot.tick % 60 == 0 {
+                print("""
+                    SSAUTOPILOT tick=\(snapshot.tick)                     player=\(snapshot.player.x),\(snapshot.player.y)                     hp=\(snapshot.playerIntegrity) exposure=\(snapshot.exposure)                     enemies=\(snapshot.enemies.count) shots=\(snapshot.projectiles.count)                     telegraphs=\(snapshot.telegraphs.count) boss=\(snapshot.boss?.integrity ?? -1)                     objective=\(snapshot.combatObjectiveCopy)
+                    """)
+            }
+        }
+#endif
         session.step()
         instrumentation.recordSimulation(session.simulation.state)
         persistDeviceEvidenceIfNeeded()
@@ -157,6 +179,7 @@ final class GameScene: SKScene {
     func restartRun(seed: UInt64? = nil) {
         let nextSeed = seed ?? session.simulation.state.seed
         session.restartRun(seed: nextSeed)
+        renderer.reset()
         instrumentation.reset()
         terminalEvidenceStored = false
         redraw()
@@ -205,85 +228,10 @@ final class GameScene: SKScene {
     }
 
     private func redraw() {
-        worldNode.removeAllChildren()
-        hudNode.removeAllChildren()
         let snap = session.snapshot
         cameraNode.position = CGPoint(x: snap.camera.center.x, y: snap.camera.center.y)
-
-        for solid in snap.solids {
-            let node = SKShapeNode(rectOf: CGSize(width: CGFloat(solid.halfSize.x * 2), height: CGFloat(solid.halfSize.y * 2)))
-            node.position = CGPoint(x: solid.center.x, y: solid.center.y)
-            node.fillColor = SKColor(white: 0.18, alpha: 1)
-            node.strokeColor = SKColor(white: 0.32, alpha: 1)
-            node.lineWidth = 2
-            worldNode.addChild(node)
-        }
-        for camera in snap.cameras {
-            let body = SKShapeNode(circleOfRadius: 12)
-            body.position = CGPoint(x: camera.x, y: camera.y)
-            body.fillColor = Self.cameraFill(camera.presentationState)
-            body.strokeColor = .clear
-            worldNode.addChild(body)
-            if camera.fieldVisible {
-                let path = CGMutablePath()
-                path.move(to: .zero)
-                let half = CGFloat(camera.fieldAngleMilli) / 2000 * .pi / 180
-                let heading = CGFloat(camera.headingMilli) / 1000 * .pi / 180
-                path.addArc(center: .zero, radius: CGFloat(camera.range), startAngle: -heading - half, endAngle: -heading + half, clockwise: false)
-                path.closeSubpath()
-                let field = SKShapeNode(path: path)
-                field.position = body.position
-                field.fillColor = SKColor(red: 0.9, green: 0.7, blue: 0.1, alpha: camera.detecting ? 0.28 : 0.12)
-                field.strokeColor = .clear
-                worldNode.addChild(field)
-            }
-        }
-        let extract = SKShapeNode(rectOf: CGSize(width: CGFloat(snap.extraction.halfSize.x * 2), height: CGFloat(snap.extraction.halfSize.y * 2)))
-        extract.position = CGPoint(x: snap.extraction.center.x, y: snap.extraction.center.y)
-        extract.fillColor = SKColor(red: 0.2, green: 0.45, blue: 0.35, alpha: snap.extractionArmed ? 0.35 : 0.12)
-        extract.strokeColor = SKColor(white: 0.7, alpha: 0.6)
-        worldNode.addChild(extract)
-
-        let player = SKShapeNode(path: Self.silhouettePath(.playerRing, at: CGPoint(x: snap.player.x, y: snap.player.y)))
-        player.fillColor = SKColor(white: 0.92, alpha: 1)
-        player.strokeColor = SKColor(white: 1, alpha: 0.7)
-        player.lineWidth = 2
-        worldNode.addChild(player)
-        for enemy in snap.enemies {
-            let node = SKShapeNode(path: Self.silhouettePath(enemy.silhouette, at: CGPoint(x: enemy.x, y: enemy.y)))
-            node.fillColor = SKColor(white: 0.55, alpha: 1)
-            node.strokeColor = SKColor(white: 0.75, alpha: 0.8)
-            node.lineWidth = 1
-            worldNode.addChild(node)
-        }
-        for marker in snap.queryMarkers {
-            let ring = SKShapeNode(circleOfRadius: CGFloat(marker.radius))
-            ring.position = CGPoint(x: marker.x, y: marker.y)
-            ring.fillColor = .clear
-            ring.strokeColor = SKColor(white: 0.8, alpha: 0.7)
-            ring.lineWidth = 2
-            worldNode.addChild(ring)
-        }
-        if let field = snap.captainField {
-            let path = CGMutablePath()
-            path.move(to: .zero)
-            let half = CGFloat(field.fieldAngleMilli) / 2000 * .pi / 180
-            let heading = CGFloat(field.headingMilli) / 1000 * .pi / 180
-            path.addArc(center: .zero, radius: CGFloat(field.range), startAngle: -heading - half, endAngle: -heading + half, clockwise: false)
-            path.closeSubpath()
-            let node = SKShapeNode(path: path)
-            node.position = CGPoint(x: field.x, y: field.y)
-            node.fillColor = SKColor(white: 0.75, alpha: 0.18)
-            node.strokeColor = .clear
-            worldNode.addChild(node)
-        }
-        for socket in snap.spawnSockets {
-            let dot = SKShapeNode(circleOfRadius: 3)
-            dot.position = CGPoint(x: socket.x, y: socket.y)
-            dot.fillColor = SKColor(white: 0.45, alpha: 0.5)
-            dot.strokeColor = .clear
-            worldNode.addChild(dot)
-        }
+        renderer.render(snap)
+        hudNode.removeAllChildren()
         drawHUD(snap)
     }
 
@@ -304,6 +252,41 @@ final class GameScene: SKScene {
         bar(HUDLayout.stick(handedness: snap.handedness), assetId: RuntimeAssetRegistry.HUD.stickBase, color: SKColor(white: 0.4, alpha: 0.35))
         bar(HUDLayout.dodge(handedness: snap.handedness), assetId: RuntimeAssetRegistry.HUD.dodge, color: SKColor(white: 0.5, alpha: 0.35))
         bar(HUDLayout.pause(), assetId: RuntimeAssetRegistry.HUD.pause, color: SKColor(white: 0.6, alpha: 0.4))
+
+        // hud-tutorial-001: boss bar only while the boss is active.
+        if let boss = snap.boss {
+            let rect = HUDLayout.bossIntegrity()
+            let origin = CGPoint(
+                x: CGFloat(rect.x) - CGFloat(HUDLayout.referenceWidth) / 2,
+                y: CGFloat(HUDLayout.referenceHeight) / 2 - CGFloat(rect.y)
+            )
+            let frame = SKShapeNode(rectOf: CGSize(width: CGFloat(rect.width), height: CGFloat(rect.height)))
+            frame.name = "boss_integrity_frame"
+            frame.fillColor = .clear
+            frame.strokeColor = SKColor(white: 0.8, alpha: 0.7)
+            frame.position = origin
+            hudNode.addChild(frame)
+
+            let ratio = boss.maxIntegrity > 0
+                ? max(0, min(1, CGFloat(boss.integrity) / CGFloat(boss.maxIntegrity)))
+                : 0
+            let fillWidth = CGFloat(rect.width) * ratio
+            if fillWidth > 0 {
+                let fill = SKShapeNode(rectOf: CGSize(width: fillWidth, height: CGFloat(rect.height) - 4))
+                fill.fillColor = SKColor(white: boss.inTransition ? 0.55 : 0.85, alpha: 0.9)
+                fill.strokeColor = .clear
+                // Drain from the right by keeping the left edge pinned.
+                fill.position = CGPoint(x: origin.x - (CGFloat(rect.width) - fillWidth) / 2, y: origin.y)
+                hudNode.addChild(fill)
+            }
+
+            let phase = SKLabelNode(text: boss.phase.rawValue.uppercased())
+            phase.fontName = "Menlo-Bold"
+            phase.fontSize = 9
+            phase.fontColor = SKColor(white: 0.9, alpha: 1)
+            phase.position = CGPoint(x: origin.x, y: origin.y - CGFloat(rect.height))
+            hudNode.addChild(phase)
+        }
 
         var hudText = "HP \(snap.playerIntegrity)  EXP \(snap.exposure) \(snap.detection.rawValue.uppercased())"
         hudText += "  \(snap.combatObjectiveCopy)"
@@ -375,28 +358,5 @@ final class GameScene: SKScene {
         }
     }
 
-    private static func cameraFill(_ state: CameraPresentationState) -> SKColor {
-        switch state {
-        case .operational:
-            return SKColor(white: 0.78, alpha: 1)
-        case .damaged, .hit:
-            return SKColor(white: 0.55, alpha: 1)
-        case .critical:
-            return SKColor(white: 0.38, alpha: 1)
-        case .destroying, .fieldOff, .destroyed, .dormant:
-            return SKColor(white: 0.18, alpha: 1)
-        }
-    }
 
-    private static func silhouettePath(_ silhouette: ActorSilhouette, at origin: CGPoint) -> CGPath {
-        let path = CGMutablePath()
-        let points = silhouette.contour
-        guard let first = points.first else { return path }
-        path.move(to: CGPoint(x: origin.x + CGFloat(first.x), y: origin.y + CGFloat(first.y)))
-        for point in points.dropFirst() {
-            path.addLine(to: CGPoint(x: origin.x + CGFloat(point.x), y: origin.y + CGFloat(point.y)))
-        }
-        path.closeSubpath()
-        return path
-    }
 }
