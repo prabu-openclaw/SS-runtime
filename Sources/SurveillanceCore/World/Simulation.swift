@@ -1307,6 +1307,30 @@ public struct Simulation: Equatable, Sendable {
         state.bossRuntime = BossRuntime()
     }
 
+    mutating func testing_insertMine(at position: VecI, armRemaining: Int, radius: Int = 40) {
+        state.mines.append(
+            MineBody(
+                id: state.allocator.next(),
+                ownerId: EntityID(1),
+                position: position.asQ8,
+                armRemaining: armRemaining,
+                lifeRemaining: 300,
+                radius: radius,
+                damage: 15
+            )
+        )
+    }
+
+    mutating func testing_beginBossTelegraph(_ attack: BossAttackID, remaining: Int) {
+        guard var runtime = state.bossRuntime else { return }
+        runtime.currentAttack = attack
+        runtime.telegraphRemaining = remaining
+        runtime.recoveryRemaining = 0
+        runtime.attackRemaining = 0
+        runtime.cooldownRemaining = 0
+        state.bossRuntime = runtime
+    }
+
     mutating func testing_activateBossField(remaining: Int = 180) {
         guard var runtime = state.bossRuntime, let emitter = state.arena.captainCameraEmitters.first else { return }
         runtime.fieldRemaining = remaining

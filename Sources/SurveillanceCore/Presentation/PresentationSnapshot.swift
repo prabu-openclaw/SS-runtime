@@ -23,6 +23,40 @@ public struct PresentationSnapshot: Equatable, Sendable {
         public var clipId: String
     }
 
+    /// combat-001 projectile, projected so the renderer never infers combat
+    /// geometry from sprite bounds.
+    public struct ProjectileSprite: Equatable, Sendable {
+        public var id: EntityID
+        public var x: Int
+        public var y: Int
+        /// Previous authoritative position, for swept presentation only.
+        public var previousX: Int
+        public var previousY: Int
+        public var radius: Int
+        public var hostile: Bool
+        public var role: String
+    }
+
+    /// Victorian Vendor mine, projected with its authoritative arming state.
+    public struct MineSprite: Equatable, Sendable {
+        public var id: EntityID
+        public var x: Int
+        public var y: Int
+        public var radius: Int
+        public var armed: Bool
+        public var armRemaining: Int
+        public var lifeRemaining: Int
+    }
+
+    /// hud-tutorial-001 boss Integrity bar source.
+    public struct BossHUD: Equatable, Sendable {
+        public var id: EntityID
+        public var integrity: Int
+        public var maxIntegrity: Int
+        public var phase: BossPhase
+        public var inTransition: Bool
+    }
+
     public var tick: UInt64
     public var outcome: RunOutcome
     public var player: CircleSprite
@@ -50,6 +84,10 @@ public struct PresentationSnapshot: Equatable, Sendable {
     public var captainField: CameraSprite?
     public var spawnSockets: [VecI]
     public var debugSolids: [AABB]
+    public var projectiles: [ProjectileSprite]
+    public var mines: [MineSprite]
+    public var boss: BossHUD?
+    public var telegraphs: [TelegraphShape]
 
     public init(_ state: WorldState) {
         tick = state.tick
@@ -166,5 +204,53 @@ public struct PresentationSnapshot: Equatable, Sendable {
             VecI(x: state.arena.bossSpawn.x, y: state.arena.bossSpawn.y)
         ]
         debugSolids = solids
+
+        // combat-001: live projectiles are authoritative entities. Ordered by
+        // stable ID so the renderer can reuse nodes deterministically.
+        projectiles = state.projectiles
+            .filter(\.alive)
+            .sorted { $0.id.raw < $1.id.raw }
+            .map { projectile in
+                ProjectileSprite(
+                    id: projectile.id,
+                    x: projectile.position.x.unitsTruncated,
+                    y: projectile.position.y.unitsTruncated,
+                    previousX: projectile.previous.x.unitsTruncated,
+                    previousY: projectile.previous.y.unitsTruncated,
+                    radius: projectile.radius,
+                    hostile: projectile.kind == .bossBolt || projectile.kind == .sutroBolt,
+                    role: String(describing: projectile.kind)
+                )
+            }
+
+        mines = state.mines
+            .sorted { $0.id.raw < $1.id.raw }
+            .map { mine in
+                MineSprite(
+                    id: mine.id,
+                    x: mine.position.x.unitsTruncated,
+                    y: mine.position.y.unitsTruncated,
+                    radius: mine.radius,
+                    armed: mine.armed,
+                    armRemaining: mine.armRemaining,
+                    lifeRemaining: mine.lifeRemaining
+                )
+            }
+
+        if let bossBody = state.enemies.first(where: { $0.archetype == .algorithmicModerate && $0.alive }),
+           let runtime = state.bossRuntime
+        {
+            boss = BossHUD(
+                id: bossBody.id,
+                integrity: bossBody.integrity,
+                maxIntegrity: state.content.bossHP,
+                phase: runtime.phase,
+                inTransition: runtime.recoveryRemaining > 0
+            )
+        } else {
+            boss = nil
+        }
+
+        telegraphs = TelegraphProjection.project(state)
     }
 }
