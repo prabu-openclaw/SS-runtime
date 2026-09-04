@@ -27,6 +27,13 @@ public struct HUDRect: Equatable, Sendable {
     public var width: Int
     public var height: Int
 
+    public init(x: Int, y: Int, width: Int, height: Int) {
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+    }
+
     public var meetsTouchTarget: Bool { width >= 44 && height >= 44 }
 
     public func reflected(acrossX axis: Int = 422) -> HUDRect {
@@ -81,6 +88,13 @@ public enum HUDLayout {
         return Int(IntMath.mulDivHalfAway(Int64(canvasPermille), Int64(hudScale.rawValue), 1000))
     }
 
+    /// hud-tutorial-001: "HUD scale setting multiplies non-control HUD ...;
+    /// controls remain at least their baseline size", and "Every interactive
+    /// rectangle is at least 44 x 44 points". So a control scales with the
+    /// canvas but never below its authored size, and never below the touch
+    /// target. It grows about its own centre so the anchor does not drift.
+    public static let minimumTouchTargetPoints = 44
+
     public static func mapControlRect(_ rect: HUDRect, safeWidth: Int, safeHeight: Int) -> HUDRect {
         var mapped = mapReferenceRect(
             rect,
@@ -89,6 +103,16 @@ public enum HUDLayout {
             hudScale: .standard,
             informational: false
         )
+        let baselineWidth = max(rect.width, minimumTouchTargetPoints)
+        let baselineHeight = max(rect.height, minimumTouchTargetPoints)
+        if mapped.width < baselineWidth {
+            mapped.x -= (baselineWidth - mapped.width) / 2
+            mapped.width = baselineWidth
+        }
+        if mapped.height < baselineHeight {
+            mapped.y -= (baselineHeight - mapped.height) / 2
+            mapped.height = baselineHeight
+        }
         if mapped.width > safeWidth { mapped.width = safeWidth }
         if mapped.height > safeHeight { mapped.height = safeHeight }
         if mapped.x + mapped.width > safeWidth { mapped.x = safeWidth - mapped.width }
@@ -107,10 +131,10 @@ public enum HUDLayout {
     ) -> HUDRect {
         let canvasPermille = scale(safeWidth: safeWidth, safeHeight: safeHeight)
         let elementPermille = informational
-            ? Int(IntMath.mulDivHalfAway(Int64(canvasPermille) * Int64(hudScale.rawValue), 1000, 1000))
+            ? Int(IntMath.mulDivHalfAway(Int64(canvasPermille), Int64(hudScale.rawValue), 1000))
             : canvasPermille
-        let canvasW = Int(IntMath.mulDivHalfAway(Int64(referenceWidth) * Int64(canvasPermille), 1000, 1000))
-        let canvasH = Int(IntMath.mulDivHalfAway(Int64(referenceHeight) * Int64(canvasPermille), 1000, 1000))
+        let canvasW = Int(IntMath.mulDivHalfAway(Int64(referenceWidth), Int64(canvasPermille), 1000))
+        let canvasH = Int(IntMath.mulDivHalfAway(Int64(referenceHeight), Int64(canvasPermille), 1000))
         let offsetX = (safeWidth - canvasW) / 2
         let offsetY = (safeHeight - canvasH) / 2
         return HUDRect(
@@ -122,7 +146,7 @@ public enum HUDLayout {
     }
 
     private static func scaledCoordinate(_ value: Int, permille: Int) -> Int {
-        Int(IntMath.mulDivHalfAway(Int64(value) * Int64(permille), 1000, 1000))
+        Int(IntMath.mulDivHalfAway(Int64(value), Int64(permille), 1000))
     }
 
     private static func controlRects(handedness: Handedness) -> [(String, HUDRect)] {
