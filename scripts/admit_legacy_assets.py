@@ -91,7 +91,13 @@ AUDIO_MAP: dict[str, str] = {
     "player_damage": "Runtime/sfx_player_damaged.caf",
     "player_death": "Runtime/sfx_player_defeated.caf",
     "camera_destroy": "Runtime/sfx_lpr_destroyed.caf",
-    "camera_hit_01": "Shared/sfx_camera_scan_sweep.caf",
+    # The manifest is explicit that sfx_countermeasure_hit is "Countermeasure
+    # impact on surveillance hardware" — that is a Camera hit, so it backs
+    # camera_hit_01 as well as impact_enemy. camera_hit_02 must sound different
+    # because the two alternate by hit count, so it takes the scan sweep: the
+    # Camera's own servo and optics reacting to being struck.
+    "camera_hit_01": "Runtime/sfx_countermeasure_hit.caf",
+    "camera_hit_02": "Shared/sfx_camera_scan_sweep.caf",
     "camera_field_off": "Shared/sfx_blind_spot_field_loop.caf",
     "exposure_state_up": "Runtime/sfx_suspicion_tier_up.caf",
     "extraction_armed": "Runtime/sfx_extraction_opened.caf",
@@ -99,6 +105,66 @@ AUDIO_MAP: dict[str, str] = {
     "upgrade_selected_signalJammer": "Runtime/sfx_upgrade_selected.caf",
     "upgrade_selected_ricochetPulse": "Runtime/sfx_upgrade_selected.caf",
     "upgrade_selected_ghostStep": "Runtime/sfx_upgrade_selected.caf",
+    # Five more cues whose legacy sound-design intent is the same gameplay
+    # meaning, per the LC-010 admission test. The manifest prompt at the frozen
+    # commit is quoted in each record's notes so the match can be checked.
+    #
+    #   camera_critical       <- "infrastructure integrity shift ... municipal
+    #                            fault tone": a Camera at Integrity 1 is exactly
+    #                            that
+    #   camera_network_tamper <- "enemy coordination chain update ... cascade
+    #                            confirm": the surveillance network losing a node
+    #   lockdown_enter        <- "municipal PA power-up, security shutters,
+    #                            synchronized camera servos ... institutional
+    #                            authority": Lockdown is the city asserting itself
+    #   daemon_query          <- "bureaucratic relay click, budget stamp,
+    #                            institutional alert": an improper search is a
+    #                            determination being made
+    #   network_blackout      <- "lattice lock-in chirp, prepared-electronic
+    #                            confirm": completing the full set of eight
+    "camera_critical": "Runtime/sfx_city_state_changed.caf",
+    "camera_network_tamper": "Runtime/sfx_coordination_changed.caf",
+    "lockdown_enter": "Runtime/sfx_boss_activated.caf",
+    "daemon_query": "Runtime/sfx_director_decision.caf",
+    "network_blackout": "Runtime/sfx_build_synergy_changed.caf",
+    # legacy-admission.md §Individually admissible non-San-Francisco cues.
+    # Single cues only, admitted on recorded meaning, with no city name in the
+    # asset ID. Music, ambience, and city packs stay excluded.
+    #
+    #   daemon_dash      <- "black paper strip slides across glass ... camera
+    #                       relay disappears behind an opaque mechanical
+    #                       shutter": the elite's attack is a Redaction Dash
+    #   boss_defeated    <- "network links snap and fall silent from the edges
+    #                       inward ... server cathedral powers down"
+    #   extraction_reset <- "municipal relay powers off, then nodes wake
+    #                       independently and reconnect"
+    "daemon_dash": "Cities/louisville/sfx_louisville_map_redaction.caf",
+    "boss_defeated": "Cities/atlanta/stinger_atlanta_final_blind_spot.caf",
+    "extraction_reset": "Cities/los_angeles/sfx_los_angeles_private_network_persist.caf",
+    # legacy-admission.md §Approximate substitution. The legacy build had no
+    # Dodge and no countdown metronome, so neither event has a sound that
+    # carries its meaning. Silence is worse than an imperfect cue for both, so
+    # each takes the nearest applicable sound and its record says so plainly.
+    # These are the first two an original-audio pass should replace.
+    "player_dodge": "Cities/san_francisco/sfx_san_francisco_hidden_sensor_fog.caf",
+    "extraction_tick": "Runtime/sfx_interactable_activate.caf",
+}
+
+# Cues admitted as the nearest applicable sound rather than an exact meaning
+# match. Their records say so, so the catalog never overstates its provenance.
+APPROXIMATE = {
+    "player_dodge": (
+        "APPROXIMATE. The legacy build had no Dodge, so no sound carries the "
+        "event. This is the only moving-air sound in the library and becoming "
+        "unseen is what a Dodge does, but it is authored as a sensor "
+        "activating and is long for a 12-tick Dodge. Replace with an original."
+    ),
+    "extraction_tick": (
+        "APPROXIMATE. The legacy build had no countdown, so no sound carries "
+        "the event. This is the shortest unused discrete mechanical step, but "
+        "it is authored as an environmental activation rather than a "
+        "metronome. Replace with an original."
+    ),
 }
 
 # Music beds, registered as `musicAssetIds` in presentation-assets-001. These
@@ -111,6 +177,24 @@ MUSIC_MAP: dict[str, str] = {
     "music_observed": "Cities/san_francisco/music_san_francisco_run_loop.caf",
     "music_boss": "Cities/san_francisco/music_san_francisco_boss_loop.caf",
     "ambience_civic_seam": "Cities/san_francisco/amb_san_francisco_city_identity_loop.caf",
+    # The remaining three states take Shared beds. `Shared/` is not a city pack,
+    # so T102's exclusion of non-San-Francisco packs does not reach it — the
+    # same route by which sfx_camera_scan_sweep and sfx_blind_spot_field_loop
+    # were already admitted. Each is matched to the state by what the zone it
+    # was written for is doing, not by its name:
+    #   lockdown   <- a security zone under active watch          (59s)
+    #   extraction <- an urgent downtown push                     (44s)
+    #   terminal   <- resolution after the pressure stops         (29s)
+    "music_lockdown": "Shared/amb_shared_retail_security_zone_loop.caf",
+    "music_extraction": "Shared/amb_shared_smart_downtown_loop.caf",
+    "music_terminal": "Shared/amb_shared_gated_serenity_loop.caf",
+    # legacy-admission.md §Boss phase beds. The Captain has four canonical
+    # phases and these four loops were written for exactly that structure,
+    # escalating in the same direction. No city name reaches the asset ID.
+    "music_boss_publicSafety": "Cities/atlanta/music_atlanta_boss_phase_1_loop.caf",
+    "music_boss_civilLiberties": "Cities/atlanta/music_atlanta_boss_phase_2_loop.caf",
+    "music_boss_temporarySafeguard": "Cities/atlanta/music_atlanta_boss_phase_3_loop.caf",
+    "music_boss_independentReview": "Cities/atlanta/music_atlanta_boss_phase_4_loop.caf",
 }
 
 DEFERRED_MUSIC: dict[str, str] = {}
@@ -285,10 +369,11 @@ def main() -> int:
                     "alpha": None,
                     "ownerContract": "audio-haptics-001",
                     "notes": (
-                        f"LC-010 bounded ADAPT. Same gameplay meaning as {asset_id}. "
-                        "Delivered as AAC; sha256 is the digest of the PCM source at the "
-                        "frozen commit. Priority, coalescence, and captions remain with "
-                        "AudioProjector."
+                        APPROXIMATE.get(asset_id)
+                        or f"LC-010 bounded ADAPT. Same gameplay meaning as {asset_id}. "
+                        + " Delivered as AAC; sha256 is the digest of the PCM source at "
+                        "the frozen commit. Priority, coalescence, and captions remain "
+                        "with AudioProjector."
                     ),
                 },
             }

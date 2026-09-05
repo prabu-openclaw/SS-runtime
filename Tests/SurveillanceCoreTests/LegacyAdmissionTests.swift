@@ -66,13 +66,62 @@ struct LegacyAdmissionTests {
         }
     }
 
-    /// Only San Francisco content is in scope (T102).
-    @Test func noAdmittedAssetComesFromAnotherCity() throws {
+    /// T102 still excludes non-San-Francisco *packs*. The amendment admits
+    /// individual cues only, so the boundary is asserted in three parts: no
+    /// pack asset may come from another city, no admitted asset ID may carry a
+    /// city name, and the exception set is exactly what the spec names.
+    @Test func onlyNamedSingleCuesComeFromAnotherCity() throws {
         let otherCities = [
             "atlanta", "columbus", "dayton", "los_angeles", "louisville",
             "new_york", "oakland", "tulsa", "wichita"
         ]
+        // The spec names three single cues and the four boss phase beds.
+        let permittedCues: Set<String> = ["daemon_dash", "boss_defeated", "extraction_reset"]
+        let permittedBeds: Set<String> = [
+            "music_boss_publicSafety", "music_boss_civilLiberties",
+            "music_boss_temporarySafeguard", "music_boss_independentReview"
+        ]
+
         for entry in try admitted() {
+            let id = entry.record.assetId
+            let source = (entry.record.source ?? "").lowercased()
+            let fromAnotherCity = otherCities.contains { source.contains($0) }
+
+            // A city name never reaches an asset ID, so nothing on screen or in
+            // a receipt names another city.
+            for city in otherCities {
+                #expect(!id.lowercased().contains(city), "\(id) carries a city name")
+            }
+            guard fromAnotherCity else { continue }
+
+            #expect(
+                permittedCues.contains(id) || permittedBeds.contains(id),
+                "\(id) is not an admitted non-SF asset"
+            )
+            let file = source.split(separator: "/").last.map(String.init) ?? ""
+            if permittedCues.contains(id) {
+                // Cues are single sfx_/stinger_ files, never packs.
+                #expect(
+                    file.hasPrefix("sfx_") || file.hasPrefix("stinger_"),
+                    "\(id) sources \(file), which is not a single cue"
+                )
+            } else {
+                // The only city music permitted is a boss phase loop.
+                #expect(file.contains("boss_phase"), "\(id) sources \(file)")
+            }
+            // City ambience and run loops are never admitted.
+            #expect(!file.hasPrefix("amb_"), "\(id) sources city ambience")
+            #expect(!file.contains("run_loop"), "\(id) sources a city run loop")
+        }
+    }
+
+    /// No environment or sprite asset may come from another city at all.
+    @Test func noVisualAssetComesFromAnotherCity() throws {
+        let otherCities = [
+            "atlanta", "columbus", "dayton", "los_angeles", "louisville",
+            "new_york", "oakland", "tulsa", "wichita"
+        ]
+        for entry in try admitted() where entry.record.kind == .sprite || entry.record.kind == .ui {
             let source = (entry.record.source ?? "").lowercased()
             for city in otherCities {
                 #expect(!source.contains(city), "\(entry.record.assetId) sources \(city)")
@@ -150,16 +199,14 @@ struct LegacyAdmissionTests {
         // 588: 564 after the Daemon vocabulary, plus 24 from pinning the
         // Captain attack clips to their telegraph windows.
         #expect(frames.count == 588)
-        // 129 admitted legacy sprites plus delivered originals.
-        #expect(backed.count == 492)
+        // 129 admitted legacy sprites plus delivered originals: every frame.
+        #expect(backed.count == 588)
         #expect(backed.isSubset(of: frames))
         // Every camera frame is backed; the cast roles are entirely unbacked.
         let cameraFrames = frames.filter { $0.hasPrefix("actor_camera_") }
         #expect(cameraFrames.allSatisfy { backed.contains($0) })
-        // The Captain is partly backed: safetyRationale, phaseTransition,
-        // stagger, and defeat landed; the other three attacks are short.
-        #expect(frames.filter { $0.contains("safetyRationale") }.allSatisfy { backed.contains($0) })
-        #expect(frames.filter { $0.contains("temporaryOrder") }.allSatisfy { !backed.contains($0) })
+        // The Captain is fully backed, attacks included.
+        #expect(frames.filter { $0.contains("algorithmicModerate") }.allSatisfy { backed.contains($0) })
     }
 
     /// A record may not point back into the evidence tree.
