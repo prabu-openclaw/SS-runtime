@@ -5,6 +5,10 @@ import UIKit
 final class GameSession {
     private(set) var simulation: Simulation
     private var cameraHUD = CameraHUDProjector()
+    private var audioProjector = AudioProjector()
+    /// Last tick's audio projection, consumed by the device layer.
+    private(set) var audio = AudioProjection.silent
+    var audioSettings: PresentationAudioSettings = .enabled
     private(set) var cameraHUDProjection = CameraHUDProjection(
         notchesVisible: false,
         notchFilled: [false, false, false],
@@ -50,6 +54,7 @@ final class GameSession {
             )
         }
         applyCameraHUD(result)
+        applyAudio(result)
         persistTerminalReceiptIfNeeded()
     }
 
@@ -63,10 +68,23 @@ final class GameSession {
     func restartRun(seed: UInt64 = 1) {
         simulation = try! Simulation.make(seed: seed)
         terminalReceiptStored = false
+        audioProjector.reset()
+        audio = AudioProjection.silent
         pendingUpgradeChoice = nil
         moveX = 0
         moveY = 0
         dodgePressed = false
+    }
+
+    /// audio-haptics-001: presentation projects authoritative events and never
+    /// feeds anything back into the simulation.
+    private func applyAudio(_ result: TickResult) {
+        audio = audioProjector.project(
+            tick: result.tick,
+            events: result.events,
+            world: AudioWorldQuery.from(simulation.state),
+            settings: audioSettings
+        )
     }
 
     private func applyCameraHUD(_ result: TickResult) {
@@ -103,6 +121,7 @@ final class GameScene: SKScene {
     private let renderer = WorldRenderer()
     private let cameraNode = SKCameraNode()
     private let hud = HUDRenderer()
+    private let soundEngine = AudioEngine()
     private var controller = TouchController()
     private var projector: HUDProjector?
     /// player-controller-001 PC-008: pause creates no simulation ticks.
@@ -179,7 +198,9 @@ final class GameScene: SKScene {
             session.moveY = steer.moveY
             if snapshot.tick % 60 == 0 {
                 print("""
-                    SSAUTOPILOT tick=\(snapshot.tick)                     player=\(snapshot.player.x),\(snapshot.player.y)                     hp=\(snapshot.playerIntegrity) exposure=\(snapshot.exposure)                     enemies=\(snapshot.enemies.count) shots=\(snapshot.projectiles.count)                     telegraphs=\(snapshot.telegraphs.count) boss=\(snapshot.boss?.integrity ?? -1)                     objective=\(snapshot.combatObjectiveCopy)
+                    SSAUTOPILOT tick=\(snapshot.tick)                     player=\(snapshot.player.x),\(snapshot.player.y)                     hp=\(snapshot.playerIntegrity) exposure=\(snapshot.exposure)                     enemies=\(snapshot.enemies.count) shots=\(snapshot.projectiles.count)                     telegraphs=\(snapshot.telegraphs.count) boss=\(snapshot.boss?.integrity ?? -1)                     objective=\(snapshot.combatObjectiveCopy) \
+                    music=\(soundEngine.musicState.rawValue) \
+                    missingCues=\(soundEngine.missingCueIds.sorted().joined(separator: ","))
                     """)
             }
         } else {
@@ -189,6 +210,7 @@ final class GameScene: SKScene {
         applyController()
 #endif
         session.step()
+        soundEngine.apply(session.audio)
         instrumentation.recordSimulation(session.simulation.state)
         persistDeviceEvidenceIfNeeded()
         redraw()
@@ -225,6 +247,7 @@ final class GameScene: SKScene {
     func restartRun(seed: UInt64? = nil) {
         let nextSeed = seed ?? session.simulation.state.seed
         session.restartRun(seed: nextSeed)
+        soundEngine.reset()
         renderer.reset()
         instrumentation.reset()
         terminalEvidenceStored = false
@@ -296,6 +319,7 @@ final class GameScene: SKScene {
         renderer.render(snap)
         hud.knobOffsetPoints = controller.knobOffset
         hud.dodgePressed = controller.dodgeTouch != nil
+        hud.captions = session.audio.captions
         hud.render(snap, cameraHUD: session.cameraHUDProjection, paused: runPaused)
     }
 }

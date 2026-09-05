@@ -15,7 +15,15 @@ struct AssetIntakeChecks {
         let catalog = try AssetCatalog.bundled()
         let issues = try AssetIntake.validate(catalog: catalog, evidenceRoot: repoRoot())
         #expect(issues.isEmpty)
-        #expect(catalog.entries.allSatisfy { $0.record.runtimePath == nil })
+        // A runtimePath now exists only on an admitted legacy asset, and never
+        // points back into the evidence tree.
+        for entry in catalog.entries where entry.record.runtimePath != nil {
+            #expect(entry.admissionDecision == .adaptedAdmitted, "\(entry.record.assetId)")
+            #expect(
+                entry.record.runtimePath?.hasPrefix("ArtSources/") == false,
+                "\(entry.record.assetId)"
+            )
+        }
         #expect(
             catalog.entries.contains {
                 $0.record.assetId == "legacy_san_francisco_landmark_bridge_distant_01"

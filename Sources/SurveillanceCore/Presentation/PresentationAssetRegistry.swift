@@ -5,15 +5,18 @@ public struct PresentationAssetRegistry: Equatable, Sendable {
     public var bundleAssetIds: [String]
     public var requiredVisualAssetIds: [String]
     public var audioEventIds: [String]
+    public var musicAssetIds: [String]
 
     public init(
         bundleAssetIds: [String],
         requiredVisualAssetIds: [String],
-        audioEventIds: [String]
+        audioEventIds: [String],
+        musicAssetIds: [String]
     ) {
         self.bundleAssetIds = bundleAssetIds
         self.requiredVisualAssetIds = requiredVisualAssetIds
         self.audioEventIds = audioEventIds
+        self.musicAssetIds = musicAssetIds
     }
 
     public static func bundled() throws -> PresentationAssetRegistry {
@@ -24,14 +27,16 @@ public struct PresentationAssetRegistry: Equatable, Sendable {
             with: SpecBundle.contract("presentation-assets-001")
         ) as? [String: Any],
             let visuals = presentation["requiredAssetIds"] as? [String],
-            let audio = presentation["audioEventIds"] as? [String]
+            let audio = presentation["audioEventIds"] as? [String],
+            let music = presentation["musicAssetIds"] as? [String]
         else {
             throw AssetCatalogError.invalidJSON
         }
         return PresentationAssetRegistry(
             bundleAssetIds: projection.bundleAssetIds,
             requiredVisualAssetIds: visuals,
-            audioEventIds: audio
+            audioEventIds: audio,
+            musicAssetIds: music
         )
     }
 

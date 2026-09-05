@@ -16,6 +16,16 @@ struct CivicSeamIdentityTests {
         let catalog = try AssetCatalog.bundled()
         #expect(CivicSeamIdentity.presentationOmitsProhibitedLabels())
         #expect(CivicSeamIdentity.catalogRejectsLiteralLandmarks(catalog))
-        #expect(catalog.entries.allSatisfy { $0.record.runtimePath == nil })
+        // Admitted legacy assets now carry a runtimePath, so the identity
+        // guarantee is stated directly: nothing rejected or excluded ships, and
+        // no literal landmark, seal, or logo reaches the bundle.
+        for entry in catalog.entries where entry.record.runtimePath != nil {
+            #expect(entry.admissionDecision == .adaptedAdmitted, "\(entry.record.assetId)")
+            let id = entry.record.assetId.lowercased()
+            #expect(!id.contains("landmark"), "\(entry.record.assetId)")
+            #expect(!id.contains("_seal_"), "\(entry.record.assetId)")
+            #expect(!id.contains("_logo_"), "\(entry.record.assetId)")
+            #expect(!id.contains("bridge"), "\(entry.record.assetId)")
+        }
     }
 }

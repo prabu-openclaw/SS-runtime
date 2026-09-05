@@ -60,6 +60,14 @@ public struct AudioProjection: Equatable, Sendable {
     public var cues: [ProjectedCue]
     public var musicState: MusicState
     public var captions: [String]
+
+    public init(cues: [ProjectedCue], musicState: MusicState, captions: [String]) {
+        self.cues = cues
+        self.musicState = musicState
+        self.captions = captions
+    }
+
+    public static let silent = AudioProjection(cues: [], musicState: .explore, captions: [])
 }
 
 /// Compact read model for cue projection. `project` must not take `WorldState` by value:

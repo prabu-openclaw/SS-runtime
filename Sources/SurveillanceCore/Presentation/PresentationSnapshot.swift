@@ -84,10 +84,31 @@ public struct PresentationSnapshot: Equatable, Sendable {
     public var captainField: CameraSprite?
     public var spawnSockets: [VecI]
     public var debugSolids: [AABB]
+    /// clip-metadata-001 clip the Player is presenting, and the compass
+    /// direction it faces. Presentation only; no rule reads either.
+    public var playerClipId: String
+    public var playerDirection: String
     public var projectiles: [ProjectileSprite]
     public var mines: [MineSprite]
     public var boss: BossHUD?
     public var telegraphs: [TelegraphShape]
+
+    /// Which Player clip the authoritative state calls for. Ordered by
+    /// precedence: a terminal outcome outranks Extraction, which outranks
+    /// motion.
+    static func playerClip(_ state: WorldState) -> String {
+        if state.outcome == .failure { return "player_defeat" }
+        if state.outcome == .success { return "player_complete" }
+        if state.player.dodgeActiveRemaining > 0 { return "player_dodge" }
+        let inExtraction = state.arena.extraction.aabb.contains(
+            VecI(
+                x: state.player.position.x.unitsTruncated,
+                y: state.player.position.y.unitsTruncated
+            )
+        )
+        if state.extraction.armed, inExtraction { return "player_extraction" }
+        return state.player.movedUnitsLastTick == 0 ? "player_idle" : "player_move"
+    }
 
     public init(_ state: WorldState) {
         tick = state.tick
@@ -251,6 +272,8 @@ public struct PresentationSnapshot: Equatable, Sendable {
             boss = nil
         }
 
+        playerDirection = ClipFrameLibrary.direction(forFacing: state.player.facing)
+        playerClipId = Self.playerClip(state)
         telegraphs = TelegraphProjection.project(state)
     }
 }

@@ -141,9 +141,9 @@ public struct Simulation: Equatable, Sendable {
             solids: state.liveSolids,
             events: &events
         )
-        state.tutorial.noteDisplacement(
-            IsolatedKernel.distanceUnits(previousPosition, state.player.position)
-        )
+        let displacement = IsolatedKernel.distanceUnits(previousPosition, state.player.position)
+        state.player.movedUnitsLastTick = displacement
+        state.tutorial.noteDisplacement(displacement)
 
         var fogPulses: [Int] = []
         var enemyPlayerDamage: [(EntityID, Int)] = []
