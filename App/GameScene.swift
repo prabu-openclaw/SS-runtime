@@ -102,8 +102,11 @@ final class GameScene: SKScene {
     private var terminalEvidenceStored = false
     private let renderer = WorldRenderer()
     private let cameraNode = SKCameraNode()
-    private let hudNode = SKNode()
-    private var stickOrigin: CGPoint?
+    private let hud = HUDRenderer()
+    private var controller = TouchController()
+    private var projector: HUDProjector?
+    /// player-controller-001 PC-008: pause creates no simulation ticks.
+    private var runPaused = false
 #if DEBUG
     private var autopilot: DebugAutopilot?
 #endif
@@ -117,7 +120,8 @@ final class GameScene: SKScene {
         addChild(renderer.root)
         addChild(cameraNode)
         camera = cameraNode
-        cameraNode.addChild(hudNode)
+        cameraNode.addChild(hud.root)
+        view.isMultipleTouchEnabled = true
         NotificationCenter.default.addObserver(
             forName: UIApplication.didReceiveMemoryWarningNotification,
             object: nil,
@@ -131,11 +135,42 @@ final class GameScene: SKScene {
             arena: session.simulation.state.arena
         )
 #endif
+        configureHUD(for: view)
         redraw()
     }
 
+    override func didChangeSize(_ oldSize: CGSize) {
+        super.didChangeSize(oldSize)
+        if let view { configureHUD(for: view) }
+    }
+
+    /// Rebuilds the HUD projection whenever the safe rectangle can have changed.
+    private func configureHUD(for view: SKView) {
+        let insets = view.safeAreaInsets
+        let projector = HUDProjector(
+            viewSize: view.bounds.size,
+            safeInsets: EdgeInsetsPoints(
+                top: insets.top,
+                left: insets.left,
+                bottom: insets.bottom,
+                right: insets.right
+            ),
+            sceneSize: size
+        )
+        self.projector = projector
+        hud.configure(
+            projector: projector,
+            handedness: session.snapshot.handedness,
+            hudScale: hudScaleSetting
+        )
+    }
+
+    /// Local setting; excluded from replay authority.
+    private var hudScaleSetting: HUDScaleSetting { .standard }
+
     override func update(_ currentTime: TimeInterval) {
         instrumentation.frameTimes.recordFrame(timestamp: currentTime)
+        guard !runPaused else { return }
 #if DEBUG
         if autopilot != nil {
             let snapshot = session.snapshot
@@ -147,12 +182,23 @@ final class GameScene: SKScene {
                     SSAUTOPILOT tick=\(snapshot.tick)                     player=\(snapshot.player.x),\(snapshot.player.y)                     hp=\(snapshot.playerIntegrity) exposure=\(snapshot.exposure)                     enemies=\(snapshot.enemies.count) shots=\(snapshot.projectiles.count)                     telegraphs=\(snapshot.telegraphs.count) boss=\(snapshot.boss?.integrity ?? -1)                     objective=\(snapshot.combatObjectiveCopy)
                     """)
             }
+        } else {
+            applyController()
         }
+#else
+        applyController()
 #endif
         session.step()
         instrumentation.recordSimulation(session.simulation.state)
         persistDeviceEvidenceIfNeeded()
         redraw()
+    }
+
+    private func applyController() {
+        let command = controller.takeCommand()
+        session.moveX = command.moveX
+        session.moveY = command.moveY
+        session.dodgePressed = command.dodgePressed
     }
 
     private func persistDeviceEvidenceIfNeeded() {
@@ -185,178 +231,71 @@ final class GameScene: SKScene {
         redraw()
     }
 
+    // MARK: - Input
+
+    private func token(_ touch: UITouch) -> TouchController.TouchToken {
+        TouchController.TouchToken(id: ObjectIdentifier(touch))
+    }
+
+    /// Touch position in safe-rectangle point space.
+    private func points(_ touch: UITouch) -> CGPoint? {
+        guard let projector else { return nil }
+        return projector.points(fromScenePoint: touch.location(in: cameraNode))
+    }
+
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        guard let touch = touches.first else { return }
-        if session.snapshot.outcome != .playing {
-            restartRun()
-            return
-        }
-        stickOrigin = touch.location(in: self)
-        let local = touch.location(in: hudNode)
-        if session.snapshot.upgradePending {
-            if local.x < 0 { session.pendingUpgradeChoice = 0 }
-            else if local.x < 80 { session.pendingUpgradeChoice = 1 }
-            else { session.pendingUpgradeChoice = 2 }
+        guard let projector else { return }
+        let snap = session.snapshot
+
+        for touch in touches {
+            guard let point = points(touch) else { continue }
+
+            if snap.outcome != .playing {
+                restartRun()
+                return
+            }
+            // The protected selection takes every touch while it is open.
+            if snap.upgradePending {
+                if let choice = hud.upgradeCardIndex(atPoints: point, projector: projector) {
+                    session.pendingUpgradeChoice = choice
+                }
+                continue
+            }
+            switch controller.began(token: token(touch), atPoints: point, layout: hud.controlLayout ?? .empty) {
+            case .pause:
+                runPaused.toggle()
+            case .stick, .dodge, .none:
+                break
+            }
         }
     }
 
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
-        guard let origin = stickOrigin, let touch = touches.first else { return }
-        let point = touch.location(in: self)
-        let dx = point.x - origin.x
-        let dy = point.y - origin.y
-        let mag = hypot(dx, dy)
-        let dead = 24.0
-        if mag <= dead {
-            session.moveX = 0
-            session.moveY = 0
-            return
+        guard let layout = hud.controlLayout else { return }
+        for touch in touches {
+            guard let point = points(touch) else { continue }
+            controller.moved(token: token(touch), toPoints: point, layout: layout)
         }
-        let nx = dx / mag
-        let ny = dy / mag
-        let scaled = min(1, (mag - dead) / 120)
-        session.moveX = Int16((nx * scaled * 32767).rounded(.toNearestOrAwayFromZero))
-        session.moveY = Int16((ny * scaled * 32767).rounded(.toNearestOrAwayFromZero))
-        session.dodgePressed = mag > 160
     }
 
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
-        session.moveX = 0
-        session.moveY = 0
-        session.dodgePressed = false
-        stickOrigin = nil
+        for touch in touches {
+            controller.ended(token: token(touch))
+        }
+    }
+
+    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
+        for touch in touches {
+            controller.ended(token: token(touch))
+        }
     }
 
     private func redraw() {
         let snap = session.snapshot
         cameraNode.position = CGPoint(x: snap.camera.center.x, y: snap.camera.center.y)
         renderer.render(snap)
-        hudNode.removeAllChildren()
-        drawHUD(snap)
+        hud.knobOffsetPoints = controller.knobOffset
+        hud.dodgePressed = controller.dodgeTouch != nil
+        hud.render(snap, cameraHUD: session.cameraHUDProjection, paused: runPaused)
     }
-
-    private func drawHUD(_ snap: PresentationSnapshot) {
-        func bar(_ rect: HUDRect, assetId: String, color: SKColor) {
-            let node = SKShapeNode(rectOf: CGSize(width: CGFloat(rect.width), height: CGFloat(rect.height)))
-            node.name = assetId
-            node.fillColor = color
-            node.strokeColor = SKColor(white: 0.8, alpha: 0.5)
-            node.position = CGPoint(
-                x: CGFloat(rect.x) - CGFloat(HUDLayout.referenceWidth) / 2,
-                y: CGFloat(HUDLayout.referenceHeight) / 2 - CGFloat(rect.y)
-            )
-            hudNode.addChild(node)
-        }
-        bar(HUDLayout.playerIntegrity(), assetId: RuntimeAssetRegistry.HUD.integrityFrame, color: SKColor(white: 0.85, alpha: 0.8))
-        bar(HUDLayout.exposureBar(), assetId: RuntimeAssetRegistry.HUD.exposureBar, color: SKColor(white: 0.55, alpha: 0.8))
-        bar(HUDLayout.stick(handedness: snap.handedness), assetId: RuntimeAssetRegistry.HUD.stickBase, color: SKColor(white: 0.4, alpha: 0.35))
-        bar(HUDLayout.dodge(handedness: snap.handedness), assetId: RuntimeAssetRegistry.HUD.dodge, color: SKColor(white: 0.5, alpha: 0.35))
-        bar(HUDLayout.pause(), assetId: RuntimeAssetRegistry.HUD.pause, color: SKColor(white: 0.6, alpha: 0.4))
-
-        // hud-tutorial-001: boss bar only while the boss is active.
-        if let boss = snap.boss {
-            let rect = HUDLayout.bossIntegrity()
-            let origin = CGPoint(
-                x: CGFloat(rect.x) - CGFloat(HUDLayout.referenceWidth) / 2,
-                y: CGFloat(HUDLayout.referenceHeight) / 2 - CGFloat(rect.y)
-            )
-            let frame = SKShapeNode(rectOf: CGSize(width: CGFloat(rect.width), height: CGFloat(rect.height)))
-            frame.name = "boss_integrity_frame"
-            frame.fillColor = .clear
-            frame.strokeColor = SKColor(white: 0.8, alpha: 0.7)
-            frame.position = origin
-            hudNode.addChild(frame)
-
-            let ratio = boss.maxIntegrity > 0
-                ? max(0, min(1, CGFloat(boss.integrity) / CGFloat(boss.maxIntegrity)))
-                : 0
-            let fillWidth = CGFloat(rect.width) * ratio
-            if fillWidth > 0 {
-                let fill = SKShapeNode(rectOf: CGSize(width: fillWidth, height: CGFloat(rect.height) - 4))
-                fill.fillColor = SKColor(white: boss.inTransition ? 0.55 : 0.85, alpha: 0.9)
-                fill.strokeColor = .clear
-                // Drain from the right by keeping the left edge pinned.
-                fill.position = CGPoint(x: origin.x - (CGFloat(rect.width) - fillWidth) / 2, y: origin.y)
-                hudNode.addChild(fill)
-            }
-
-            let phase = SKLabelNode(text: boss.phase.rawValue.uppercased())
-            phase.fontName = "Menlo-Bold"
-            phase.fontSize = 9
-            phase.fontColor = SKColor(white: 0.9, alpha: 1)
-            phase.position = CGPoint(x: origin.x, y: origin.y - CGFloat(rect.height))
-            hudNode.addChild(phase)
-        }
-
-        var hudText = "HP \(snap.playerIntegrity)  EXP \(snap.exposure) \(snap.detection.rawValue.uppercased())"
-        hudText += "  \(snap.combatObjectiveCopy)"
-        if snap.cameraObjectiveVisible {
-            hudText += "  \(snap.cameraObjectiveCopy)"
-        }
-        if session.cameraHUDProjection.notchesVisible {
-            let marks = session.cameraHUDProjection.notchFilled.map { $0 ? "|" : "." }.joined()
-            hudText += "  CAM[\(marks)]"
-        }
-        if session.cameraHUDProjection.tamperVisible {
-            hudText += "  \(session.cameraHUDProjection.tamperCopy)"
-        }
-        let hud = SKLabelNode(text: hudText)
-        hud.fontName = "Menlo-Bold"
-        hud.fontSize = 10
-        hud.fontColor = SKColor(white: 0.95, alpha: 1)
-        hud.position = CGPoint(x: 0, y: CGFloat(HUDLayout.referenceHeight) / 2 - 20)
-        hudNode.addChild(hud)
-
-        if let copy = snap.tutorialCopy {
-            let tutorial = SKLabelNode(text: copy)
-            tutorial.fontName = "Menlo-Bold"
-            tutorial.fontSize = 12
-            tutorial.fontColor = SKColor(white: 0.95, alpha: 1)
-            tutorial.position = CGPoint(x: 0, y: -CGFloat(HUDLayout.referenceHeight) / 2 + 40)
-            hudNode.addChild(tutorial)
-        }
-        if snap.extractionArmed {
-            let ring = SKLabelNode(text: "\(snap.extractionSeconds)")
-            ring.name = RuntimeAssetRegistry.HUD.extractionRing
-            ring.fontName = "Menlo-Bold"
-            ring.fontSize = 18
-            ring.fontColor = SKColor(white: 0.9, alpha: 1)
-            ring.position = CGPoint(x: 0, y: 40)
-            hudNode.addChild(ring)
-        }
-        if snap.upgradePending {
-            drawUpgradeSelection()
-        }
-    }
-
-    private func drawUpgradeSelection() {
-        let cards = UpgradePresentation.selectionCards()
-        let startX = -CGFloat(HUDLayout.referenceWidth) / 2 + 40
-        for (index, card) in cards.enumerated() {
-            let x = startX + CGFloat(index) * 120
-            let backdrop = SKShapeNode(rectOf: CGSize(width: 110, height: 72), cornerRadius: 8)
-            backdrop.name = "upgrade_card_\(card.upgrade.rawValue)"
-            backdrop.fillColor = SKColor(white: 0.2, alpha: 0.85)
-            backdrop.strokeColor = SKColor(white: 0.7, alpha: 0.8)
-            backdrop.position = CGPoint(x: x, y: -CGFloat(HUDLayout.referenceHeight) / 2 + 96)
-            backdrop.accessibilityLabel = card.voiceOverLabel
-            hudNode.addChild(backdrop)
-
-            let title = SKLabelNode(text: card.name)
-            title.fontName = "Menlo-Bold"
-            title.fontSize = 10
-            title.fontColor = SKColor(white: 0.95, alpha: 1)
-            title.position = CGPoint(x: x, y: backdrop.position.y + 16)
-            hudNode.addChild(title)
-
-            let summary = SKLabelNode(text: card.role)
-            summary.fontName = "Menlo"
-            summary.fontSize = 8
-            summary.fontColor = SKColor(white: 0.8, alpha: 1)
-            summary.position = CGPoint(x: x, y: backdrop.position.y - 4)
-            hudNode.addChild(summary)
-        }
-    }
-
-
 }
