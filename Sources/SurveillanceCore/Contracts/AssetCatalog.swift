@@ -261,7 +261,8 @@ enum AssetCatalogLoader {
     private static func requirePresentationIDs(entries: [AssetCatalogEntry], presentationJSON: Data) throws {
         guard let root = try? JSONSerialization.jsonObject(with: presentationJSON) as? [String: Any],
               let visuals = root["requiredAssetIds"] as? [String],
-              let audio = root["audioEventIds"] as? [String]
+              let audio = root["audioEventIds"] as? [String],
+              let music = root["musicAssetIds"] as? [String]
         else {
             throw AssetCatalogError.invalidJSON
         }
@@ -276,7 +277,7 @@ enum AssetCatalogLoader {
                 }
                 .map(\.record.assetId)
         )
-        for id in visuals + audio {
+        for id in visuals + audio + music {
             guard covered.contains(id) else {
                 throw AssetCatalogError.missingRequiredPresentationId(id)
             }

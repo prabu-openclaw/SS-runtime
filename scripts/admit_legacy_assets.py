@@ -31,6 +31,7 @@ import argparse
 import hashlib
 import json
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -100,19 +101,19 @@ AUDIO_MAP: dict[str, str] = {
     "upgrade_selected_ghostStep": "Runtime/sfx_upgrade_selected.caf",
 }
 
-# Music and ambience are buses, not event IDs. `audio-haptics-001` names six
-# music states but no contract enumerates music *asset* IDs, so there is no
-# reachability slot for them and RuntimeBundleFilter correctly refuses to bundle
-# them. Holding these back until `presentation-assets-001` grows a
-# `musicAssetIds` array; admitting them now would mean forcing an unreachable
-# asset into the bundle, which is the exact failure the filter exists to catch.
-MUSIC_MAP: dict[str, str] = {}
-
-DEFERRED_MUSIC = {
-    "music_run_loop": "Cities/san_francisco/music_san_francisco_run_loop.caf",
-    "music_boss_loop": "Cities/san_francisco/music_san_francisco_boss_loop.caf",
-    "ambience_city_identity_loop": "Cities/san_francisco/amb_san_francisco_city_identity_loop.caf",
+# Music beds, registered as `musicAssetIds` in presentation-assets-001. These
+# are continuous beds, not event cues: no priority, no coalescence, no voice
+# cost. The legacy run loop backs both `explore` and `observed` because it is
+# the same "not yet in trouble" bed in both games; lockdown, extraction, and
+# terminal have no legacy equivalent and stay planned originals.
+MUSIC_MAP: dict[str, str] = {
+    "music_explore": "Cities/san_francisco/music_san_francisco_run_loop.caf",
+    "music_observed": "Cities/san_francisco/music_san_francisco_run_loop.caf",
+    "music_boss": "Cities/san_francisco/music_san_francisco_boss_loop.caf",
+    "ambience_civic_seam": "Cities/san_francisco/amb_san_francisco_city_identity_loop.caf",
 }
+
+DEFERRED_MUSIC: dict[str, str] = {}
 
 ROLE_BOX = {
     "player": "playerAndStandardEnemy",
@@ -124,6 +125,25 @@ ROLE_BOX = {
 
 def sha256_of(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def deliver_audio(src: Path, dst: Path) -> None:
+    """Transcode a delivery clip to AAC.
+
+    The frozen clips are 48 kHz stereo Int16 PCM, which is a mastering format,
+    not a shipping one: the four music beds alone are 32 MB uncompressed. This
+    is the audio counterpart of resampling a sprite into its authored box — the
+    record's `sha256` still documents the immutable source, and `runtimePath`
+    names the delivered artifact.
+    """
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    result = subprocess.run(
+        ["afconvert", "-f", "m4af", "-d", "aac", "-b", "128000", str(src), str(dst)],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"afconvert failed for {src.name}: {result.stderr.strip()}")
 
 
 def resample(src: Path, dst: Path, box_w: int, box_h: int, anchor: dict) -> tuple[int, int]:
@@ -229,16 +249,23 @@ def main() -> int:
                     }
                 )
 
+    # One source may back several IDs (upgrade_selected backs three upgrades,
+    # the run loop backs explore and observed). Deliver each source once and let
+    # every record that shares it point at the same file.
+    delivered_by_source: dict[str, str] = {}
     for asset_id, rel in list(AUDIO_MAP.items()) + list(MUSIC_MAP.items()):
         src = audio / rel
         if not src.exists():
             skipped.append(f"{asset_id}: missing {rel}")
             continue
-        name = f"{asset_id}.caf"
-        if not args.dry_run:
-            DELIVERY.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(src, DELIVERY / name)
-        delivered += 1
+        if rel in delivered_by_source:
+            name = delivered_by_source[rel]
+        else:
+            name = f"{Path(rel).stem}.m4a"
+            delivered_by_source[rel] = name
+            if not args.dry_run:
+                deliver_audio(src, DELIVERY / name)
+            delivered += 1
         records.append(
             {
                 "admissionDecision": "adaptedAdmitted",
@@ -259,7 +286,41 @@ def main() -> int:
                     "ownerContract": "audio-haptics-001",
                     "notes": (
                         f"LC-010 bounded ADAPT. Same gameplay meaning as {asset_id}. "
-                        "Priority, coalescence, and captions remain with AudioProjector."
+                        "Delivered as AAC; sha256 is the digest of the PCM source at the "
+                        "frozen commit. Priority, coalescence, and captions remain with "
+                        "AudioProjector."
+                    ),
+                },
+            }
+        )
+
+    # A registered music ID with no admitted bed still needs a catalog entry, or
+    # the loader fails closed on an uncovered presentation ID.
+    presentation = json.loads((CONTRACTS / "presentation-assets-001.json").read_text())
+    for asset_id in presentation.get("musicAssetIds", []):
+        if asset_id in MUSIC_MAP:
+            continue
+        records.append(
+            {
+                "admissionDecision": "plannedOriginal",
+                "record": {
+                    "schemaVersion": "asset-record-001",
+                    "assetId": asset_id,
+                    "kind": "music",
+                    "productionStatus": "planned",
+                    "runtimeRequired": True,
+                    "provenance": "projectOriginal",
+                    "license": None,
+                    "source": None,
+                    "runtimePath": None,
+                    "sha256": None,
+                    "dimensions": None,
+                    "colorSpace": None,
+                    "alpha": None,
+                    "ownerContract": "audio-haptics-001",
+                    "notes": (
+                        f"No legacy bed carries this state. {asset_id} stays a project "
+                        "original; the state plays no music until it is produced."
                     ),
                 },
             }
@@ -282,14 +343,6 @@ def main() -> int:
 
     print(f"delivered {delivered} assets -> {DELIVERY.relative_to(ROOT)}")
     print(f"catalog entries now {len(catalog['entries'])}")
-    if DEFERRED_MUSIC:
-        print(
-            f"\ndeferred ({len(DEFERRED_MUSIC)}): music and ambience have no reachability "
-            "slot until presentation-assets-001 declares musicAssetIds:"
-        )
-        for k in DEFERRED_MUSIC:
-            print(f"  {k}")
-
     if skipped:
         print(f"\nnot backed by legacy ({len(skipped)}):")
         for line in skipped[:12]:

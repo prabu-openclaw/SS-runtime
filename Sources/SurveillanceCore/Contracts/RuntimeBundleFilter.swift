@@ -23,11 +23,12 @@ public enum RuntimeBundleFilter {
     public static func reachableAssetIds(presentationJSON: Data) throws -> Set<String> {
         guard let root = try? JSONSerialization.jsonObject(with: presentationJSON) as? [String: Any],
               let visuals = root["requiredAssetIds"] as? [String],
-              let audio = root["audioEventIds"] as? [String]
+              let audio = root["audioEventIds"] as? [String],
+              let music = root["musicAssetIds"] as? [String]
         else {
             throw AssetCatalogError.invalidJSON
         }
-        return Set(visuals + audio)
+        return Set(visuals + audio + music)
     }
 
     /// Frame IDs named by `clip-metadata-001`. A frame a clip plays is

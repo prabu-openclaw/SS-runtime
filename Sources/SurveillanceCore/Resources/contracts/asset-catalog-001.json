@@ -12543,6 +12543,26 @@
       "admissionDecision": "adaptedAdmitted",
       "record": {
         "schemaVersion": "asset-record-001",
+        "assetId": "ambience_civic_seam",
+        "kind": "music",
+        "productionStatus": "accepted",
+        "runtimeRequired": true,
+        "provenance": "adaptedLegacy",
+        "license": "ElevenLabs commercial license (owner account), recorded on the frozen audio manifest",
+        "source": "legacy://Resources/Audio/Delivery/Cities/san_francisco/amb_san_francisco_city_identity_loop.caf@3b20d88d6a6e1fe8f07f45f581359d371fa65d98",
+        "runtimePath": "amb_san_francisco_city_identity_loop.m4a",
+        "sha256": "cbe1a14807589b910080f71a3c4b2685420f5ce9a7c85f829797244b365b1684",
+        "dimensions": null,
+        "colorSpace": null,
+        "alpha": null,
+        "ownerContract": "audio-haptics-001",
+        "notes": "LC-010 bounded ADAPT. Same gameplay meaning as ambience_civic_seam. Delivered as AAC; sha256 is the digest of the PCM source at the frozen commit. Priority, coalescence, and captions remain with AudioProjector."
+      }
+    },
+    {
+      "admissionDecision": "adaptedAdmitted",
+      "record": {
+        "schemaVersion": "asset-record-001",
         "assetId": "camera_destroy",
         "kind": "audio",
         "productionStatus": "accepted",
@@ -12550,13 +12570,13 @@
         "provenance": "adaptedLegacy",
         "license": "ElevenLabs commercial license (owner account), recorded on the frozen audio manifest",
         "source": "legacy://Resources/Audio/Delivery/Runtime/sfx_lpr_destroyed.caf@3b20d88d6a6e1fe8f07f45f581359d371fa65d98",
-        "runtimePath": "camera_destroy.caf",
+        "runtimePath": "sfx_lpr_destroyed.m4a",
         "sha256": "e0aa3408e2d06f8e8a0e56724b05e3828a1c586088917b9c0437d1537918070f",
         "dimensions": null,
         "colorSpace": null,
         "alpha": null,
         "ownerContract": "audio-haptics-001",
-        "notes": "LC-010 bounded ADAPT. Same gameplay meaning as camera_destroy. Priority, coalescence, and captions remain with AudioProjector."
+        "notes": "LC-010 bounded ADAPT. Same gameplay meaning as camera_destroy. Delivered as AAC; sha256 is the digest of the PCM source at the frozen commit. Priority, coalescence, and captions remain with AudioProjector."
       }
     },
     {
@@ -12570,13 +12590,13 @@
         "provenance": "adaptedLegacy",
         "license": "ElevenLabs commercial license (owner account), recorded on the frozen audio manifest",
         "source": "legacy://Resources/Audio/Delivery/Shared/sfx_blind_spot_field_loop.caf@3b20d88d6a6e1fe8f07f45f581359d371fa65d98",
-        "runtimePath": "camera_field_off.caf",
+        "runtimePath": "sfx_blind_spot_field_loop.m4a",
         "sha256": "247ae03c3d2feb7abe5ac5389c0d5191911bbee4a6a485290ffd254a282a7c97",
         "dimensions": null,
         "colorSpace": null,
         "alpha": null,
         "ownerContract": "audio-haptics-001",
-        "notes": "LC-010 bounded ADAPT. Same gameplay meaning as camera_field_off. Priority, coalescence, and captions remain with AudioProjector."
+        "notes": "LC-010 bounded ADAPT. Same gameplay meaning as camera_field_off. Delivered as AAC; sha256 is the digest of the PCM source at the frozen commit. Priority, coalescence, and captions remain with AudioProjector."
       }
     },
     {
@@ -12590,13 +12610,13 @@
         "provenance": "adaptedLegacy",
         "license": "ElevenLabs commercial license (owner account), recorded on the frozen audio manifest",
         "source": "legacy://Resources/Audio/Delivery/Shared/sfx_camera_scan_sweep.caf@3b20d88d6a6e1fe8f07f45f581359d371fa65d98",
-        "runtimePath": "camera_hit_01.caf",
+        "runtimePath": "sfx_camera_scan_sweep.m4a",
         "sha256": "b156b0016193084cf8288b25c938ac7e3f678f89a363fc3989127435f610ca15",
         "dimensions": null,
         "colorSpace": null,
         "alpha": null,
         "ownerContract": "audio-haptics-001",
-        "notes": "LC-010 bounded ADAPT. Same gameplay meaning as camera_hit_01. Priority, coalescence, and captions remain with AudioProjector."
+        "notes": "LC-010 bounded ADAPT. Same gameplay meaning as camera_hit_01. Delivered as AAC; sha256 is the digest of the PCM source at the frozen commit. Priority, coalescence, and captions remain with AudioProjector."
       }
     },
     {
@@ -12610,13 +12630,13 @@
         "provenance": "adaptedLegacy",
         "license": "ElevenLabs commercial license (owner account), recorded on the frozen audio manifest",
         "source": "legacy://Resources/Audio/Delivery/Runtime/sfx_suspicion_tier_up.caf@3b20d88d6a6e1fe8f07f45f581359d371fa65d98",
-        "runtimePath": "exposure_state_up.caf",
+        "runtimePath": "sfx_suspicion_tier_up.m4a",
         "sha256": "2d46ca1776dda84a9f6f4e49816146db69d9e4252db15adcc52fcca061b8d808",
         "dimensions": null,
         "colorSpace": null,
         "alpha": null,
         "ownerContract": "audio-haptics-001",
-        "notes": "LC-010 bounded ADAPT. Same gameplay meaning as exposure_state_up. Priority, coalescence, and captions remain with AudioProjector."
+        "notes": "LC-010 bounded ADAPT. Same gameplay meaning as exposure_state_up. Delivered as AAC; sha256 is the digest of the PCM source at the frozen commit. Priority, coalescence, and captions remain with AudioProjector."
       }
     },
     {
@@ -12630,13 +12650,13 @@
         "provenance": "adaptedLegacy",
         "license": "ElevenLabs commercial license (owner account), recorded on the frozen audio manifest",
         "source": "legacy://Resources/Audio/Delivery/Runtime/sfx_extraction_opened.caf@3b20d88d6a6e1fe8f07f45f581359d371fa65d98",
-        "runtimePath": "extraction_armed.caf",
+        "runtimePath": "sfx_extraction_opened.m4a",
         "sha256": "c34afa63017379d933f29e0482044eb6712bc3e921c183ad9d29700081b24c16",
         "dimensions": null,
         "colorSpace": null,
         "alpha": null,
         "ownerContract": "audio-haptics-001",
-        "notes": "LC-010 bounded ADAPT. Same gameplay meaning as extraction_armed. Priority, coalescence, and captions remain with AudioProjector."
+        "notes": "LC-010 bounded ADAPT. Same gameplay meaning as extraction_armed. Delivered as AAC; sha256 is the digest of the PCM source at the frozen commit. Priority, coalescence, and captions remain with AudioProjector."
       }
     },
     {
@@ -12650,13 +12670,133 @@
         "provenance": "adaptedLegacy",
         "license": "ElevenLabs commercial license (owner account), recorded on the frozen audio manifest",
         "source": "legacy://Resources/Audio/Delivery/Runtime/sfx_countermeasure_hit.caf@3b20d88d6a6e1fe8f07f45f581359d371fa65d98",
-        "runtimePath": "impact_enemy.caf",
+        "runtimePath": "sfx_countermeasure_hit.m4a",
         "sha256": "e53e6f194c9edb7382f8928179aba00c57fd9898e86bb6076df7ea27d5d2730c",
         "dimensions": null,
         "colorSpace": null,
         "alpha": null,
         "ownerContract": "audio-haptics-001",
-        "notes": "LC-010 bounded ADAPT. Same gameplay meaning as impact_enemy. Priority, coalescence, and captions remain with AudioProjector."
+        "notes": "LC-010 bounded ADAPT. Same gameplay meaning as impact_enemy. Delivered as AAC; sha256 is the digest of the PCM source at the frozen commit. Priority, coalescence, and captions remain with AudioProjector."
+      }
+    },
+    {
+      "admissionDecision": "adaptedAdmitted",
+      "record": {
+        "schemaVersion": "asset-record-001",
+        "assetId": "music_boss",
+        "kind": "music",
+        "productionStatus": "accepted",
+        "runtimeRequired": true,
+        "provenance": "adaptedLegacy",
+        "license": "ElevenLabs commercial license (owner account), recorded on the frozen audio manifest",
+        "source": "legacy://Resources/Audio/Delivery/Cities/san_francisco/music_san_francisco_boss_loop.caf@3b20d88d6a6e1fe8f07f45f581359d371fa65d98",
+        "runtimePath": "music_san_francisco_boss_loop.m4a",
+        "sha256": "914470f84a0fdfa2fa6fcd845ea791df6cef9f6b719a99cab97608fe3225f336",
+        "dimensions": null,
+        "colorSpace": null,
+        "alpha": null,
+        "ownerContract": "audio-haptics-001",
+        "notes": "LC-010 bounded ADAPT. Same gameplay meaning as music_boss. Delivered as AAC; sha256 is the digest of the PCM source at the frozen commit. Priority, coalescence, and captions remain with AudioProjector."
+      }
+    },
+    {
+      "admissionDecision": "adaptedAdmitted",
+      "record": {
+        "schemaVersion": "asset-record-001",
+        "assetId": "music_explore",
+        "kind": "music",
+        "productionStatus": "accepted",
+        "runtimeRequired": true,
+        "provenance": "adaptedLegacy",
+        "license": "ElevenLabs commercial license (owner account), recorded on the frozen audio manifest",
+        "source": "legacy://Resources/Audio/Delivery/Cities/san_francisco/music_san_francisco_run_loop.caf@3b20d88d6a6e1fe8f07f45f581359d371fa65d98",
+        "runtimePath": "music_san_francisco_run_loop.m4a",
+        "sha256": "f85878eeb38fb88e872c2fe79331b324370c1ac4eb27b1acf06480ea6ad21808",
+        "dimensions": null,
+        "colorSpace": null,
+        "alpha": null,
+        "ownerContract": "audio-haptics-001",
+        "notes": "LC-010 bounded ADAPT. Same gameplay meaning as music_explore. Delivered as AAC; sha256 is the digest of the PCM source at the frozen commit. Priority, coalescence, and captions remain with AudioProjector."
+      }
+    },
+    {
+      "admissionDecision": "plannedOriginal",
+      "record": {
+        "schemaVersion": "asset-record-001",
+        "assetId": "music_extraction",
+        "kind": "music",
+        "productionStatus": "planned",
+        "runtimeRequired": true,
+        "provenance": "projectOriginal",
+        "license": null,
+        "source": null,
+        "runtimePath": null,
+        "sha256": null,
+        "dimensions": null,
+        "colorSpace": null,
+        "alpha": null,
+        "ownerContract": "audio-haptics-001",
+        "notes": "No legacy bed carries this state. music_extraction stays a project original; the state plays no music until it is produced."
+      }
+    },
+    {
+      "admissionDecision": "plannedOriginal",
+      "record": {
+        "schemaVersion": "asset-record-001",
+        "assetId": "music_lockdown",
+        "kind": "music",
+        "productionStatus": "planned",
+        "runtimeRequired": true,
+        "provenance": "projectOriginal",
+        "license": null,
+        "source": null,
+        "runtimePath": null,
+        "sha256": null,
+        "dimensions": null,
+        "colorSpace": null,
+        "alpha": null,
+        "ownerContract": "audio-haptics-001",
+        "notes": "No legacy bed carries this state. music_lockdown stays a project original; the state plays no music until it is produced."
+      }
+    },
+    {
+      "admissionDecision": "adaptedAdmitted",
+      "record": {
+        "schemaVersion": "asset-record-001",
+        "assetId": "music_observed",
+        "kind": "music",
+        "productionStatus": "accepted",
+        "runtimeRequired": true,
+        "provenance": "adaptedLegacy",
+        "license": "ElevenLabs commercial license (owner account), recorded on the frozen audio manifest",
+        "source": "legacy://Resources/Audio/Delivery/Cities/san_francisco/music_san_francisco_run_loop.caf@3b20d88d6a6e1fe8f07f45f581359d371fa65d98",
+        "runtimePath": "music_san_francisco_run_loop.m4a",
+        "sha256": "f85878eeb38fb88e872c2fe79331b324370c1ac4eb27b1acf06480ea6ad21808",
+        "dimensions": null,
+        "colorSpace": null,
+        "alpha": null,
+        "ownerContract": "audio-haptics-001",
+        "notes": "LC-010 bounded ADAPT. Same gameplay meaning as music_observed. Delivered as AAC; sha256 is the digest of the PCM source at the frozen commit. Priority, coalescence, and captions remain with AudioProjector."
+      }
+    },
+    {
+      "admissionDecision": "plannedOriginal",
+      "record": {
+        "schemaVersion": "asset-record-001",
+        "assetId": "music_terminal",
+        "kind": "music",
+        "productionStatus": "planned",
+        "runtimeRequired": true,
+        "provenance": "projectOriginal",
+        "license": null,
+        "source": null,
+        "runtimePath": null,
+        "sha256": null,
+        "dimensions": null,
+        "colorSpace": null,
+        "alpha": null,
+        "ownerContract": "audio-haptics-001",
+        "notes": "No legacy bed carries this state. music_terminal stays a project original; the state plays no music until it is produced."
       }
     },
     {
@@ -12670,13 +12810,13 @@
         "provenance": "adaptedLegacy",
         "license": "ElevenLabs commercial license (owner account), recorded on the frozen audio manifest",
         "source": "legacy://Resources/Audio/Delivery/Runtime/sfx_player_damaged.caf@3b20d88d6a6e1fe8f07f45f581359d371fa65d98",
-        "runtimePath": "player_damage.caf",
+        "runtimePath": "sfx_player_damaged.m4a",
         "sha256": "7519c9f11714ed1d8e7d49e0812d34ac5f3b71f64295a3a2eeaaaa1c947fa04e",
         "dimensions": null,
         "colorSpace": null,
         "alpha": null,
         "ownerContract": "audio-haptics-001",
-        "notes": "LC-010 bounded ADAPT. Same gameplay meaning as player_damage. Priority, coalescence, and captions remain with AudioProjector."
+        "notes": "LC-010 bounded ADAPT. Same gameplay meaning as player_damage. Delivered as AAC; sha256 is the digest of the PCM source at the frozen commit. Priority, coalescence, and captions remain with AudioProjector."
       }
     },
     {
@@ -12690,13 +12830,13 @@
         "provenance": "adaptedLegacy",
         "license": "ElevenLabs commercial license (owner account), recorded on the frozen audio manifest",
         "source": "legacy://Resources/Audio/Delivery/Runtime/sfx_player_defeated.caf@3b20d88d6a6e1fe8f07f45f581359d371fa65d98",
-        "runtimePath": "player_death.caf",
+        "runtimePath": "sfx_player_defeated.m4a",
         "sha256": "fa349aa9178f1df122a430e1555a396118c812562f73f86b4d53efa8f3a9e3bd",
         "dimensions": null,
         "colorSpace": null,
         "alpha": null,
         "ownerContract": "audio-haptics-001",
-        "notes": "LC-010 bounded ADAPT. Same gameplay meaning as player_death. Priority, coalescence, and captions remain with AudioProjector."
+        "notes": "LC-010 bounded ADAPT. Same gameplay meaning as player_death. Delivered as AAC; sha256 is the digest of the PCM source at the frozen commit. Priority, coalescence, and captions remain with AudioProjector."
       }
     },
     {
@@ -12710,13 +12850,13 @@
         "provenance": "adaptedLegacy",
         "license": "ElevenLabs commercial license (owner account), recorded on the frozen audio manifest",
         "source": "legacy://Resources/Audio/Delivery/Runtime/sfx_extraction_completed.caf@3b20d88d6a6e1fe8f07f45f581359d371fa65d98",
-        "runtimePath": "run_success.caf",
+        "runtimePath": "sfx_extraction_completed.m4a",
         "sha256": "89f08682e58226973d84f62ee2e66efa560fcd024f187758b580ee2130621994",
         "dimensions": null,
         "colorSpace": null,
         "alpha": null,
         "ownerContract": "audio-haptics-001",
-        "notes": "LC-010 bounded ADAPT. Same gameplay meaning as run_success. Priority, coalescence, and captions remain with AudioProjector."
+        "notes": "LC-010 bounded ADAPT. Same gameplay meaning as run_success. Delivered as AAC; sha256 is the digest of the PCM source at the frozen commit. Priority, coalescence, and captions remain with AudioProjector."
       }
     },
     {
@@ -12730,13 +12870,13 @@
         "provenance": "adaptedLegacy",
         "license": "ElevenLabs commercial license (owner account), recorded on the frozen audio manifest",
         "source": "legacy://Resources/Audio/Delivery/Runtime/sfx_upgrade_selected.caf@3b20d88d6a6e1fe8f07f45f581359d371fa65d98",
-        "runtimePath": "upgrade_selected_ghostStep.caf",
+        "runtimePath": "sfx_upgrade_selected.m4a",
         "sha256": "65caef38aa656e4aafe2c774e7b02d65dc1dc35ef7124fe839c8339af7246d7b",
         "dimensions": null,
         "colorSpace": null,
         "alpha": null,
         "ownerContract": "audio-haptics-001",
-        "notes": "LC-010 bounded ADAPT. Same gameplay meaning as upgrade_selected_ghostStep. Priority, coalescence, and captions remain with AudioProjector."
+        "notes": "LC-010 bounded ADAPT. Same gameplay meaning as upgrade_selected_ghostStep. Delivered as AAC; sha256 is the digest of the PCM source at the frozen commit. Priority, coalescence, and captions remain with AudioProjector."
       }
     },
     {
@@ -12750,13 +12890,13 @@
         "provenance": "adaptedLegacy",
         "license": "ElevenLabs commercial license (owner account), recorded on the frozen audio manifest",
         "source": "legacy://Resources/Audio/Delivery/Runtime/sfx_upgrade_selected.caf@3b20d88d6a6e1fe8f07f45f581359d371fa65d98",
-        "runtimePath": "upgrade_selected_ricochetPulse.caf",
+        "runtimePath": "sfx_upgrade_selected.m4a",
         "sha256": "65caef38aa656e4aafe2c774e7b02d65dc1dc35ef7124fe839c8339af7246d7b",
         "dimensions": null,
         "colorSpace": null,
         "alpha": null,
         "ownerContract": "audio-haptics-001",
-        "notes": "LC-010 bounded ADAPT. Same gameplay meaning as upgrade_selected_ricochetPulse. Priority, coalescence, and captions remain with AudioProjector."
+        "notes": "LC-010 bounded ADAPT. Same gameplay meaning as upgrade_selected_ricochetPulse. Delivered as AAC; sha256 is the digest of the PCM source at the frozen commit. Priority, coalescence, and captions remain with AudioProjector."
       }
     },
     {
@@ -12770,13 +12910,13 @@
         "provenance": "adaptedLegacy",
         "license": "ElevenLabs commercial license (owner account), recorded on the frozen audio manifest",
         "source": "legacy://Resources/Audio/Delivery/Runtime/sfx_upgrade_selected.caf@3b20d88d6a6e1fe8f07f45f581359d371fa65d98",
-        "runtimePath": "upgrade_selected_signalJammer.caf",
+        "runtimePath": "sfx_upgrade_selected.m4a",
         "sha256": "65caef38aa656e4aafe2c774e7b02d65dc1dc35ef7124fe839c8339af7246d7b",
         "dimensions": null,
         "colorSpace": null,
         "alpha": null,
         "ownerContract": "audio-haptics-001",
-        "notes": "LC-010 bounded ADAPT. Same gameplay meaning as upgrade_selected_signalJammer. Priority, coalescence, and captions remain with AudioProjector."
+        "notes": "LC-010 bounded ADAPT. Same gameplay meaning as upgrade_selected_signalJammer. Delivered as AAC; sha256 is the digest of the PCM source at the frozen commit. Priority, coalescence, and captions remain with AudioProjector."
       }
     },
     {
@@ -12790,13 +12930,13 @@
         "provenance": "adaptedLegacy",
         "license": "ElevenLabs commercial license (owner account), recorded on the frozen audio manifest",
         "source": "legacy://Resources/Audio/Delivery/Runtime/sfx_weapon_fire.caf@3b20d88d6a6e1fe8f07f45f581359d371fa65d98",
-        "runtimePath": "weapon_civic_pulse.caf",
+        "runtimePath": "sfx_weapon_fire.m4a",
         "sha256": "5cf3464bc30cd78280e63e9e0bc889c8da21a751e33604981e424df38af463a8",
         "dimensions": null,
         "colorSpace": null,
         "alpha": null,
         "ownerContract": "audio-haptics-001",
-        "notes": "LC-010 bounded ADAPT. Same gameplay meaning as weapon_civic_pulse. Priority, coalescence, and captions remain with AudioProjector."
+        "notes": "LC-010 bounded ADAPT. Same gameplay meaning as weapon_civic_pulse. Delivered as AAC; sha256 is the digest of the PCM source at the frozen commit. Priority, coalescence, and captions remain with AudioProjector."
       }
     }
   ]

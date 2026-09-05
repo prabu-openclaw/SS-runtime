@@ -69,6 +69,7 @@ final class HUDRenderer {
         drawUpgradeBadge(snap, projector)
         drawTutorial(snap, projector)
         drawCameraNotches(cameraHUD, projector)
+        drawCaptions(projector)
         drawControls(snap, projector, paused: paused)
         if snap.upgradePending {
             drawUpgradeSelection(projector)
@@ -452,6 +453,36 @@ final class HUDRenderer {
         )
     }
 
+    /// Caption history in a right-hand column, newest at the bottom.
+    ///
+    /// The layout table does not place captions, so they take the free strip
+    /// under the upgrade badge — clear of the tutorial card at the bottom
+    /// centre, which carries higher-priority copy and must never be occluded.
+    private func drawCaptions(_ projector: HUDProjector) {
+        guard !captions.isEmpty else { return }
+        let column = projector.mapped(
+            HUDRect(x: 596, y: 112, width: 224, height: 110),
+            hudScale: hudScale,
+            informational: true
+        )
+        let right = projector.scenePoint(
+            fromPoints: CGPoint(x: CGFloat(column.x + column.width), y: CGFloat(column.y))
+        )
+        let line = projector.sceneLength(points: 13)
+        let visible = captions.suffix(8)
+        for (index, caption) in visible.enumerated() {
+            let fromNewest = visible.count - 1 - index
+            label(
+                key: "caption-\(index)",
+                text: caption.uppercased(),
+                at: CGPoint(x: right.x, y: right.y - line * CGFloat(index)),
+                size: 8,
+                colour: fromNewest == 0 ? HUDPalette.text : HUDPalette.dim,
+                alignment: .right
+            )
+        }
+    }
+
     // MARK: - Controls
 
     private func drawControls(
@@ -547,6 +578,10 @@ final class HUDRenderer {
     /// Set by `GameScene` each frame from the live controller.
     var knobOffsetPoints: CGPoint = .zero
     var dodgePressed = false
+    /// audio-haptics-001 §Accessibility: "Every safety-critical audio event has
+    /// a visual caption/event equivalent." The projector keeps the last eight
+    /// and clears them on restart; this only draws them.
+    var captions: [String] = []
 
     /// Three equal cards in canonical order, no default and no timeout.
     private func drawUpgradeSelection(_ projector: HUDProjector) {
@@ -666,6 +701,7 @@ final class HUDRenderer {
         node.position = alignment == .left && leftEdge != nil
             ? CGPoint(x: leftEdge!, y: position.y)
             : position
+        node.horizontalAlignmentMode = alignment
     }
 }
 
