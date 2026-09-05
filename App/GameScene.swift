@@ -135,6 +135,9 @@ final class GameScene: SKScene {
     private var projector: HUDProjector?
     /// player-controller-001 PC-008: pause creates no simulation ticks.
     private var runPaused = false
+    /// Raised when the player presses Pause; SwiftUI owns the surface itself.
+    var onPauseRequested: (() -> Void)?
+    private var settings: PresentationSettings = .defaults
 #if DEBUG
     private var autopilot: DebugAutopilot?
     /// The `--console-pty` stream drops on long runs; the unified log survives,
@@ -202,13 +205,36 @@ final class GameScene: SKScene {
         self.projector = projector
         hud.configure(
             projector: projector,
-            handedness: session.snapshot.handedness,
-            hudScale: hudScaleSetting
+            // Handedness is a local setting, not authoritative state.
+            handedness: settings.handedness,
+            hudScale: settings.hudScale
         )
     }
 
     /// Local setting; excluded from replay authority.
-    private var hudScaleSetting: HUDScaleSetting { .standard }
+    private var hudScaleSetting: HUDScaleSetting { settings.hudScale }
+
+    /// Applies presentation settings. Nothing here reaches the simulation:
+    /// ER-007 requires the digest and receipt to be unchanged by a settings
+    /// change, and none of these values is a simulation input.
+    func apply(settings: PresentationSettings) {
+        self.settings = settings
+        session.audioSettings = settings.audio
+        soundEngine.settings = settings.audio
+        soundEngine.mix = AudioEngine.Mix(
+            master: Float(settings.mix.master) / 100,
+            music: Float(settings.mix.music) / 100,
+            effects: Float(settings.mix.effects) / 100,
+            voice: Float(settings.mix.voice) / 100,
+            haptics: Float(settings.mix.haptics) / 100
+        )
+        hud.pinCameraCounter = settings.pinCameraCounter
+        if let view { configureHUD(for: view) }
+    }
+
+    func setPaused(_ paused: Bool) {
+        runPaused = paused
+    }
 
     override func update(_ currentTime: TimeInterval) {
         instrumentation.frameTimes.recordFrame(timestamp: currentTime)
@@ -333,7 +359,7 @@ final class GameScene: SKScene {
             }
             switch controller.began(token: token(touch), atPoints: point, layout: hud.controlLayout ?? .empty) {
             case .pause:
-                runPaused.toggle()
+                onPauseRequested?()
             case .stick, .dodge, .none:
                 break
             }

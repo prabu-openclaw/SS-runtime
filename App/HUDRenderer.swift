@@ -275,7 +275,7 @@ final class HUDRenderer {
                 - projector.sceneLength(points: rect(.combatObjective, projector).width) / 2
         )
         // Camera counter stays hidden until first Camera damage.
-        if snap.cameraObjectiveVisible {
+        if snap.cameraObjectiveVisible || pinCameraCounter {
             let mapped = rect(.cameraObjective, projector)
             label(
                 key: "camera-objective",
@@ -582,6 +582,8 @@ final class HUDRenderer {
     /// a visual caption/event equivalent." The projector keeps the last eight
     /// and clears them on restart; this only draws them.
     var captions: [String] = []
+    /// camera-destruction.md: the Camera counter may be pinned through settings.
+    var pinCameraCounter = false
 
     /// Card geometry in safe-rectangle point space — the single source the
     /// drawing, the hit test, and any synthetic tap all read. Computing it
