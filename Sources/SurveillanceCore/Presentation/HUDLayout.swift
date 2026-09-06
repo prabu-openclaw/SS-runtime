@@ -201,6 +201,59 @@ public enum HUDLayout {
         complete ? networkBlackoutAccolade : "CAM \(destroyed)/\(cameraObjectiveTotal)"
     }
 
+    /// Terminal surface geometry, in safe-rectangle points.
+    ///
+    /// Not part of the `hud-tutorial-001` layout table: that table describes HUD
+    /// elements present during play, and this is a shell surface shown once the
+    /// run is over. It is centred on the safe rectangle rather than authored on
+    /// the 844x390 reference canvas, matching the upgrade overlay.
+    public static func terminalPanel(safeWidth: Int, safeHeight: Int) -> HUDRect {
+        HUDRect(
+            x: safeWidth / 2 - terminalPanelWidth / 2,
+            y: safeHeight / 2 - terminalPanelHeight / 2,
+            width: terminalPanelWidth,
+            height: terminalPanelHeight
+        )
+    }
+
+    /// The restart control: the only thing on screen that restarts a run.
+    ///
+    /// Sized at or above `minimumTouchTargetPoints` in both axes — if this rect
+    /// were wrong the player would be stranded on the terminal surface with no
+    /// way out, so its geometry is pinned by tests.
+    public static func terminalRestart(safeWidth: Int, safeHeight: Int) -> HUDRect {
+        let panel = terminalPanel(safeWidth: safeWidth, safeHeight: safeHeight)
+        return HUDRect(
+            x: panel.x + panel.width / 2 - terminalButtonWidth / 2,
+            y: panel.y + panel.height - terminalButtonHeight - terminalButtonInset,
+            width: terminalButtonWidth,
+            height: terminalButtonHeight
+        )
+    }
+
+    public static let terminalPanelWidth = 420
+    public static let terminalPanelHeight = 190
+    public static let terminalButtonWidth = 200
+    public static let terminalButtonHeight = 52
+    static let terminalButtonInset = 20
+
+    /// Copy for a finished run.
+    ///
+    /// audio-haptics-001 already names these outcomes for its accessibility
+    /// captions ("Run complete", "Player down"); these reuse those words rather
+    /// than inventing terminal copy. hud-tutorial-001: copy is uppercase in
+    /// visual presentation and sentence case for VoiceOver.
+    ///
+    /// Returns nil for a live run, so the surface cannot appear mid-run.
+    public static func terminalCopy(for outcome: RunOutcome) -> String? {
+        switch outcome {
+        case .success: return "RUN COMPLETE"
+        case .failure: return "PLAYER DOWN"
+        case .invalid: return "RUN INVALID"
+        case .playing, .upgradeSelectionPending: return nil
+        }
+    }
+
     public static let lockedExtractionCopy = "DEFEAT THE CURRENT AUTHORITY"
     public static let phoenixStepsOpenCopy = "PHOENIX STEPS OPEN"
 

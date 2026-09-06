@@ -157,6 +157,12 @@ final class GameScene: SKScene {
         addChild(renderer.root)
         addChild(cameraNode)
         camera = cameraNode
+        // `ignoresSiblingOrder` makes draw order depend on zPosition alone, and
+        // ties are undefined. WorldRenderer assigns its layers 0...8 while the
+        // HUD left everything at the default 0, so world sprites could draw over
+        // HUD elements — visible immediately once a centred panel exists, but
+        // true of every HUD element that a sprite happened to overlap.
+        hud.root.zPosition = 1000
         cameraNode.addChild(hud.root)
         view.isMultipleTouchEnabled = true
         NotificationCenter.default.addObserver(
@@ -349,8 +355,19 @@ final class GameScene: SKScene {
         for touch in touches {
             guard let point = points(touch) else { continue }
 
-            if snap.outcome != .playing {
-                restartRun()
+            // Only a finished run restarts, and only from the restart control.
+            //
+            // This was `snap.outcome != .playing`, which is also true while the
+            // upgrade selection is open — so the first tap at the upgrade gate
+            // restarted the entire run and the selection branch below could
+            // never be reached. `isTerminal` excludes that state.
+            //
+            // Requiring the control also ends restart-on-any-touch, which had
+            // no surface telling the player the run was over.
+            if snap.outcome.isTerminal {
+                if hud.terminalRestartHit(atPoints: point, projector: projector) {
+                    restartRun()
+                }
                 return
             }
             // The protected selection takes every touch while it is open.

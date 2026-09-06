@@ -67,13 +67,17 @@ final class HUDRenderer {
         drawBoss(snap, projector)
         drawExtraction(snap, projector)
         drawUpgradeBadge(snap, projector)
-        drawTutorial(snap, projector)
+        // A finished run has nothing left to teach, and the card would sit
+        // under the terminal panel. (#64's 300-tick cap retires a stale card
+        // during play; this covers a run that ends while one is still fresh.)
+        if !snap.outcome.isTerminal { drawTutorial(snap, projector) }
         drawCameraNotches(cameraHUD, projector)
         drawCaptions(projector)
         drawControls(snap, projector, paused: paused)
         if snap.upgradePending {
             drawUpgradeSelection(projector)
         }
+        drawTerminal(snap, projector)
 
         sweep()
     }
@@ -616,6 +620,87 @@ final class HUDRenderer {
         upgradeCardRects(projector: projector)
             .first { $0.upgrade == upgrade }
             .map { CGPoint(x: $0.rect.midX, y: $0.rect.midY) }
+    }
+
+    /// Terminal surface geometry comes from `HUDLayout`, which owns HUD layout
+    /// maths and can be tested without the App target.
+    private func rect(_ hud: HUDRect) -> CGRect {
+        CGRect(x: CGFloat(hud.x), y: CGFloat(hud.y), width: CGFloat(hud.width), height: CGFloat(hud.height))
+    }
+
+    func terminalPanelRect(projector: HUDProjector) -> CGRect {
+        rect(HUDLayout.terminalPanel(safeWidth: projector.safeWidth, safeHeight: projector.safeHeight))
+    }
+
+    /// The restart control. The only thing on screen that restarts a run.
+    func terminalRestartRect(projector: HUDProjector) -> CGRect {
+        rect(HUDLayout.terminalRestart(safeWidth: projector.safeWidth, safeHeight: projector.safeHeight))
+    }
+
+    func terminalRestartHit(atPoints point: CGPoint, projector: HUDProjector) -> Bool {
+        terminalRestartRect(projector: projector).contains(point)
+    }
+
+    /// Drawn once the run is over, so a finished run says so instead of looking
+    /// like a game that stopped responding.
+    private func drawTerminal(_ snap: PresentationSnapshot, _ projector: HUDProjector) {
+        guard let title = HUDLayout.terminalCopy(for: snap.outcome) else { return }
+        let panel = terminalPanelRect(projector: projector)
+        let panelCentre = projector.scenePoint(fromPoints: CGPoint(x: panel.midX, y: panel.midY))
+
+        let scrim = node("terminal-scrim") { () -> SKShapeNode in
+            let shape = SKShapeNode(
+                rectOf: CGSize(
+                    width: projector.sceneLength(points: projector.safeWidth),
+                    height: projector.sceneLength(points: projector.safeHeight)
+                )
+            )
+            shape.fillColor = HUDPalette.scrim
+            shape.strokeColor = .clear
+            return shape
+        }
+        scrim.position = projector.scenePoint(
+            fromPoints: CGPoint(x: CGFloat(projector.safeWidth) / 2, y: CGFloat(projector.safeHeight) / 2)
+        )
+
+        let backdrop = node("terminal-backdrop") { () -> SKShapeNode in
+            let shape = SKShapeNode(
+                rectOf: CGSize(
+                    width: projector.sceneLength(points: Int(panel.width)),
+                    height: projector.sceneLength(points: Int(panel.height))
+                ),
+                cornerRadius: 4
+            )
+            shape.fillColor = HUDPalette.panel
+            shape.strokeColor = HUDPalette.frame
+            return shape
+        }
+        backdrop.position = panelCentre
+
+        label(
+            key: "terminal-title",
+            text: title,
+            at: projector.scenePoint(fromPoints: CGPoint(x: panel.midX, y: panel.minY + 54)),
+            size: 18,
+            colour: HUDPalette.text
+        )
+
+        let button = terminalRestartRect(projector: projector)
+        let buttonCentre = projector.scenePoint(fromPoints: CGPoint(x: button.midX, y: button.midY))
+        let plate = node("terminal-restart") { () -> SKShapeNode in
+            let shape = SKShapeNode(
+                rectOf: CGSize(
+                    width: projector.sceneLength(points: Int(button.width)),
+                    height: projector.sceneLength(points: Int(button.height))
+                ),
+                cornerRadius: 3
+            )
+            shape.fillColor = HUDPalette.panel
+            shape.strokeColor = HUDPalette.frame
+            return shape
+        }
+        plate.position = buttonCentre
+        label(key: "terminal-restart-label", text: "RESTART", at: buttonCentre, size: 13, colour: HUDPalette.text)
     }
 
     /// Three equal cards in canonical order, no default and no timeout.
