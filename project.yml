@@ -37,3 +37,20 @@ targets:
           - UIInterfaceOrientationLandscapeRight
         GENERATE_INFOPLIST_FILE: YES
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    scheme:
+      testTargets:
+        - SSRuntimeTests
+
+  # App/ is built by XcodeGen and was never compiled by `swift test`, so touch
+  # routing, input, and HUD interaction had no automated coverage at all — the
+  # shared root cause of the upgrade-gate restart (#65) and the never-called
+  # TouchController.reset() (#66). These types need UIKit and SpriteKit, so they
+  # cannot be hosted in the SwiftPM package; they are tested here instead, on a
+  # simulator, exactly as they ship.
+  SSRuntimeTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: AppTests
+    dependencies:
+      - target: SSRuntime

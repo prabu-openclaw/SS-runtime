@@ -23,6 +23,11 @@ jobs:
     # The iOS app target had never been compiled by CI: Bundle.module was
     # unavailable to a framework target and App/ had access-level errors.
     # Build it on every change so the README bootstrap path stays honest.
+    #
+    # It now runs SSRuntimeTests too. App/ is built by XcodeGen and is never
+    # compiled by `swift test`, so touch routing, input, and HUD interaction had
+    # no automated coverage — the shared root cause of the upgrade-gate restart
+    # (#65) and the never-called TouchController.reset() (#66).
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
@@ -30,7 +35,7 @@ jobs:
         run: brew list xcodegen >/dev/null 2>&1 || brew install xcodegen
       - name: Generate project
         run: xcodegen generate
-      - name: Build SSRuntime for iOS Simulator
+      - name: Build and test SSRuntime for iOS Simulator
         run: |
           set -euo pipefail
           sim="$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); ds=[x for v in d["devices"].values() for x in v if "iPhone" in x["name"]]; print(ds[-1]["udid"])')"
@@ -40,9 +45,9 @@ jobs:
           # read 0 and the job could never fail. Keep xcodebuild's own status.
           set +e
           xcodebuild -project SSRuntime.xcodeproj -scheme SSRuntime -sdk iphonesimulator \
-            -destination "platform=iOS Simulator,id=$sim" CODE_SIGNING_ALLOWED=NO build \
+            -destination "platform=iOS Simulator,id=$sim" CODE_SIGNING_ALLOWED=NO test \
             > /tmp/xcodebuild.log 2>&1
           status=$?
           set -e
-          grep -E "error:|warning:|BUILD (SUCCEEDED|FAILED)" /tmp/xcodebuild.log || true
+          grep -E "error:|warning:|✘|Test run with|BUILD (SUCCEEDED|FAILED)|TEST (SUCCEEDED|FAILED)" /tmp/xcodebuild.log || true
           exit "$status"
