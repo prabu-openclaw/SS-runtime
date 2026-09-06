@@ -22,6 +22,8 @@ final class WorldRenderer {
 
     /// Draw order. Later layers sit on top.
     private enum Layer: Int, CaseIterable {
+        /// Beneath everything. The street plane was a bare background colour.
+        case ground
         case solids
         case extraction
         case cameraFields
@@ -37,6 +39,9 @@ final class WorldRenderer {
     /// Admitted clip frames. Empty until assets are admitted, in which case
     /// every actor keeps its authored blockout.
     private let sprites = SpriteLibrary()
+    private let environment = EnvironmentTextures()
+    /// The arena does not move, so the ground is tiled once.
+    private var groundBuilt = false
     /// Clip currently playing per actor key, so an animation is not restarted
     /// on every frame.
     private var activeClips: [String: String] = [:]
@@ -66,10 +71,14 @@ final class WorldRenderer {
         }
         solidSignature = nil
         activeClips = [:]
+        // reset() empties every layer, ground included, so the build flag has to
+        // clear with it — otherwise a restarted run keeps a blank plane forever.
+        groundBuilt = false
     }
 
     /// Backed frames over the whole clip contract, for evidence reporting.
     var spriteCoverage: (backed: Int, total: Int) { sprites.coverage }
+    var environmentCoverage: (backed: Int, total: Int) { environment.coverage }
 
     /// Plays `clipId` on a sprite node, or returns false when the clip has no
     /// admitted art and the caller must fall back to the blockout.
@@ -138,6 +147,7 @@ final class WorldRenderer {
     // MARK: - Frame
 
     func render(_ snap: PresentationSnapshot) {
+        renderGround(snap)
         renderSolids(snap)
         renderExtraction(snap)
         renderCameras(snap)
@@ -148,6 +158,73 @@ final class WorldRenderer {
         renderProjectiles(snap)
         renderMarkers(snap)
     }
+
+    /// Tiles the street plane, once.
+    ///
+    /// The arena does not move, so this builds on the first frame with art and
+    /// is never rebuilt. `visual-assets-001` §3a: unbacked leaves the authored
+    /// fill, so a level with no ground art looks exactly as it did before.
+    ///
+    /// Surface is chosen per zone — `civic-seam-001` §3 gives each zone an
+    /// identity, and paving is the cheapest way to make that identity legible.
+    private func renderGround(_ snap: PresentationSnapshot) {
+        guard environment.hasGround, !groundBuilt else { return }
+        guard let layer = layers[.ground] else { return }
+
+        let tile = CGFloat(Self.groundTileUnits)
+        let bounds = snap.arenaBounds
+        let minX = CGFloat(bounds.center.x - bounds.halfSize.x)
+        let minY = CGFloat(bounds.center.y - bounds.halfSize.y)
+        let width = CGFloat(bounds.halfSize.x * 2)
+        let height = CGFloat(bounds.halfSize.y * 2)
+
+        var y = minY
+        while y < minY + height {
+            var x = minX
+            while x < minX + width {
+                let centre = CGPoint(x: x + tile / 2, y: y + tile / 2)
+                let assetId = groundAssetId(at: centre, zones: snap.zones)
+                if let texture = environment.texture(assetId: assetId) {
+                    let node = SKSpriteNode(texture: texture, size: CGSize(width: tile, height: tile))
+                    node.position = centre
+                    layer.addChild(node)
+                }
+                x += tile
+            }
+            y += tile
+        }
+        groundBuilt = true
+    }
+
+    /// Ground surface for a point, by the zone containing it.
+    ///
+    /// Falls back to the first declared tile outside every zone, so the plane is
+    /// continuous rather than holed where zones do not tile the whole arena.
+    private func groundAssetId(at point: CGPoint, zones: [PresentationSnapshot.ZoneRect]) -> String {
+        let ids = environment.groundIds
+        guard !ids.isEmpty else { return "" }
+        let containing = zones.first { zone in
+            let box = zone.box
+            return abs(point.x - CGFloat(box.center.x)) <= CGFloat(box.halfSize.x)
+                && abs(point.y - CGFloat(box.center.y)) <= CGFloat(box.halfSize.y)
+        }
+        guard let zone = containing, let surface = Self.zoneSurface[zone.id] else { return ids[0] }
+        return ids.first { $0 == surface } ?? ids[0]
+    }
+
+    /// `civic-seam-001` §3, zone identity to paving.
+    private static let zoneSurface: [String: String] = [
+        "Z-01": "env_ground_sidewalk",   // Residential Wedge
+        "Z-02": "env_ground_railbed",    // Transit Cut
+        "Z-03": "env_ground_plaza",      // Civic Plaza
+        "Z-04": "env_ground_service",    // Service Seam
+        "Z-05": "env_ground_asphalt",    // Grid Junction
+        "Z-06": "env_ground_plaza",      // Authority Court
+        "Z-07": "env_ground_steps"       // Phoenix Steps
+    ]
+
+    /// One ground tile spans 2 x 2 authoring cells.
+    private static let groundTileUnits = 128
 
     private func renderSolids(_ snap: PresentationSnapshot) {
         // Cheap change detector: solids are authored, so position and count
@@ -167,18 +244,31 @@ final class WorldRenderer {
         let layer = layers[.solids]
         layer?.removeAllChildren()
         nodes[.solids] = [:]
-        for solid in snap.solids {
-            let node = SKShapeNode(
-                rectOf: CGSize(
-                    width: CGFloat(solid.halfSize.x * 2),
-                    height: CGFloat(solid.halfSize.y * 2)
-                )
+        for (index, solid) in snap.solids.enumerated() {
+            let size = CGSize(
+                width: CGFloat(solid.halfSize.x * 2),
+                height: CGFloat(solid.halfSize.y * 2)
             )
-            node.position = CGPoint(x: solid.center.x, y: solid.center.y)
-            node.fillColor = Palette.solidFill
-            node.strokeColor = Palette.solidStroke
-            node.lineWidth = 2
-            layer?.addChild(node)
+            let position = CGPoint(x: solid.center.x, y: solid.center.y)
+
+            // visual-assets-001 §3a: art is optional, and an unbacked solid
+            // keeps its authored blockout. The art is sized to the collision
+            // box exactly, so a player is never blocked by something that looks
+            // passable or walks through something that looks solid.
+            if let id = snap.solidIds.indices.contains(index) ? snap.solidIds[index] : nil,
+               let texture = environment.solidTexture(solidId: id)
+            {
+                let node = SKSpriteNode(texture: texture, size: size)
+                node.position = position
+                layer?.addChild(node)
+            } else {
+                let node = SKShapeNode(rectOf: size)
+                node.position = position
+                node.fillColor = Palette.solidFill
+                node.strokeColor = Palette.solidStroke
+                node.lineWidth = 2
+                layer?.addChild(node)
+            }
         }
     }
 

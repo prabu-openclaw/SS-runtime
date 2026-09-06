@@ -68,6 +68,29 @@ public struct PresentationSnapshot: Equatable, Sendable {
     public var exposure: Int
     public var detection: DetectionState
     public var solids: [AABB]
+    /// Arena id per entry in `solids`, parallel and same order.
+    ///
+    /// The renderer needs it to find that solid's art: `visual-assets-001`
+    /// derives environment asset IDs from `permanentSolids`, so the id is the
+    /// link between a collision box and the sprite drawn over it.
+    public var solidIds: [String]
+    /// Arena extent, so the ground plane knows how far to tile.
+    public var arenaBounds: AABB
+    /// Authored zones with their rectangles. The ground surface is chosen per
+    /// zone — `civic-seam-001` §3 gives each one an identity, and paving is
+    /// the cheapest way to make that identity legible from the ground up.
+    public var zones: [ZoneRect]
+
+    /// An authored zone and its rectangle.
+    public struct ZoneRect: Equatable, Sendable {
+        public let id: String
+        public let box: AABB
+
+        public init(id: String, box: AABB) {
+            self.id = id
+            self.box = box
+        }
+    }
     public var cameras: [CameraSprite]
     public var enemies: [CircleSprite]
     public var extraction: AABB
@@ -137,7 +160,11 @@ public struct PresentationSnapshot: Equatable, Sendable {
         playerIntegrity = state.player.integrity
         exposure = state.exposure.exposure
         detection = state.exposure.detectionState
-        solids = state.liveSolids.map(\.box)
+        let live = state.liveSolids
+        solids = live.map(\.box)
+        solidIds = live.map(\.id)
+        arenaBounds = state.arena.boundsUnits.aabb
+        zones = state.arena.zones.map { ZoneRect(id: $0.id, box: $0.aabb) }
         cameras = state.cameras.map {
             let presentationState = CameraPresentation.persistentState(integrity: $0.integrity)
             return CameraSprite(

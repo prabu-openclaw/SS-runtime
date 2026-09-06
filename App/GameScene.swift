@@ -176,6 +176,17 @@ final class GameScene: SKScene {
         }
 #if DEBUG
         let arguments = ProcessInfo.processInfo.arguments
+        // `-SSMute` silences a harness run. Verification launches the app dozens
+        // of times, and a simulator has no volume control of its own.
+        if arguments.contains("-SSMute") {
+            session.audioSettings = PresentationAudioSettings(
+                effectsEnabled: false,
+                hapticsEnabled: false,
+                musicEnabled: false
+            )
+            soundEngine.settings = session.audioSettings
+            soundEngine.mix = AudioEngine.Mix(master: 0, music: 0, effects: 0, voice: 0, haptics: 0)
+        }
         autopilot = DebugAutopilot.fromLaunchArguments(arguments, arena: session.simulation.state.arena)
         // `-SSSeed <scenario>` puts the simulation into a named legal late-game
         // state so the renderer can be observed there. Presentation evidence
