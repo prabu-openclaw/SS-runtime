@@ -60,7 +60,13 @@ struct OriginalArtTests {
         let boxes = visual["spriteBoxes"] as! [String: Any]
         func box(_ key: String) -> [String: Int] { boxes[key] as! [String: Int] }
 
-        for entry in try originals() where entry.record.kind == .sprite {
+        // Actor art only. Environment art is sized by the arena rather than by
+        // an actor sprite box — a solid's art is drawn over its collision box —
+        // so it is checked against the arena in `environmentArtMatchesItsSolid`
+        // below rather than folded into the actor rule here.
+        for entry in try originals() where entry.record.kind == .sprite
+            && entry.record.assetId.hasPrefix("actor_")
+        {
             let id = entry.record.assetId
             let expected: [String: Int]
             if id.contains("improperSearchDaemon") { expected = box("improperSearchDaemon") }
@@ -71,6 +77,55 @@ struct OriginalArtTests {
             let dimensions = try #require(entry.record.dimensions, "\(id)")
             #expect(dimensions.width == expected["width"], "\(id)")
             #expect(dimensions.height == expected["height"], "\(id)")
+        }
+    }
+
+    /// Every actor sprite is covered by the rule above.
+    ///
+    /// The previous version routed anything unrecognised into the standard actor
+    /// box through an `else`, so a new category of sprite would have been
+    /// silently held to the wrong size. This pins that actor art is still
+    /// exhaustively checked now that the loop filters by prefix.
+    @Test func everyActorSpriteIsSizeChecked() throws {
+        let actors = try originals().filter {
+            $0.record.kind == .sprite && $0.record.assetId.hasPrefix("actor_")
+        }
+        #expect(!actors.isEmpty)
+        for entry in actors {
+            #expect(entry.record.dimensions != nil, "\(entry.record.assetId)")
+        }
+    }
+
+    /// A solid's art is drawn over its collision box, so it must be exactly that
+    /// size. Art that does not match would block a player with something that
+    /// looks passable, or let them walk through something that looks solid.
+    @Test func environmentArtMatchesItsSolid() throws {
+        let arena = try ArenaManifest.bundled()
+        let records = try originals().reduce(into: [String: AssetRecord]()) {
+            $0[$1.record.assetId] = $1.record
+        }
+
+        for solid in arena.permanentSolids {
+            let id = EnvironmentLibrary.solidAssetId(forSolidId: solid.id)
+            guard let record = records[id] else { continue }
+            let dimensions = try #require(record.dimensions, "\(id)")
+            #expect(dimensions.width == solid.halfSize.x * 2, "\(id)")
+            #expect(dimensions.height == solid.halfSize.y * 2, "\(id)")
+        }
+    }
+
+    /// Ground tiles repeat across the plane, so they must be square and uniform
+    /// or the tiling seams.
+    @Test func groundTilesAreUniform() throws {
+        let library = try EnvironmentLibrary.bundled()
+        let records = try originals().reduce(into: [String: AssetRecord]()) {
+            $0[$1.record.assetId] = $1.record
+        }
+        for id in library.ids(in: .ground) {
+            guard let record = records[id] else { continue }
+            let dimensions = try #require(record.dimensions, "\(id)")
+            #expect(dimensions.width == 128, "\(id)")
+            #expect(dimensions.height == 128, "\(id)")
         }
     }
 

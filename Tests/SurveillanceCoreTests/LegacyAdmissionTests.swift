@@ -187,6 +187,9 @@ struct LegacyAdmissionTests {
         let frames = try RuntimeBundleFilter.reachableClipFrameIds(
             clipJSON: SpecBundle.contract("clip-metadata-001")
         )
+        // Clip coverage only. Environment sprites are admitted the same way but
+        // are not clip frames, so they are excluded here rather than counted as
+        // animation the game does not have.
         let backed = Set(
             catalog.entries
                 .filter {
@@ -195,7 +198,7 @@ struct LegacyAdmissionTests {
                         && $0.record.kind == .sprite
                 }
                 .map(\.record.assetId)
-        )
+        ).intersection(frames)
         // 588: 564 after the Daemon vocabulary, plus 24 from pinning the
         // Captain attack clips to their telegraph windows.
         #expect(frames.count == 588)
@@ -207,6 +210,11 @@ struct LegacyAdmissionTests {
         #expect(cameraFrames.allSatisfy { backed.contains($0) })
         // The Captain is fully backed, attacks included.
         #expect(frames.filter { $0.contains("algorithmicModerate") }.allSatisfy { backed.contains($0) })
+
+        // Environment art must never be mistaken for clip coverage. Admitting
+        // it once inflated this count from 588 to 629, which is exactly the
+        // kind of silent drift this test exists to catch.
+        #expect(frames.allSatisfy { !$0.hasPrefix("env_") })
     }
 
     /// A record may not point back into the evidence tree.
