@@ -31,7 +31,11 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.zer0state.surveillancesurvivor
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
-        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        # The generated launch screen was blank, and Xcode's
+        # INFOPLIST_KEY_UILaunchScreen_* sub-keys are not honoured — the
+        # UILaunchScreen dict is emitted empty whatever UIImageName is set to.
+        # A storyboard is the reliable route.
+        INFOPLIST_KEY_UILaunchStoryboardName: LaunchScreen
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone:
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
