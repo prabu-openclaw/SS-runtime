@@ -4,6 +4,19 @@ public enum RunOutcome: String, Equatable, Sendable {
     case success
     case failure
     case invalid
+
+    /// Whether the run is over.
+    ///
+    /// `upgradeSelectionPending` is deliberately **not** terminal: the run is
+    /// paused for a choice, not finished. Treating "not playing" as "over" is
+    /// how a tap at the upgrade gate came to restart the whole run, so the
+    /// distinction lives here rather than at each call site.
+    public var isTerminal: Bool {
+        switch self {
+        case .success, .failure, .invalid: return true
+        case .playing, .upgradeSelectionPending: return false
+        }
+    }
 }
 
 public enum FailureReason: String, Equatable, Sendable {
