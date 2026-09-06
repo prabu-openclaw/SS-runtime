@@ -211,6 +211,8 @@ public struct Simulation: Equatable, Sendable {
         )
         state.tutorial.noteContact(!contacts.isEmpty)
         state.tutorial.lockdownPreempts = state.exposure.lockdownEntered && state.tutorial.phase != .complete
+        state.tutorial.extractionPreempts = tutorialExtractionPrompt()
+        state.tutorial.notePresentedTick()
         let view = PresentationCamera.follow(
             player: VecI(x: state.player.position.x.unitsTruncated, y: state.player.position.y.unitsTruncated),
             heading: state.player.facing,
@@ -320,6 +322,18 @@ public struct Simulation: Equatable, Sendable {
                 "selectionIndex": .integer(Int64(index))
             ]
         )
+    }
+
+    /// hud-tutorial-001: Extraction is a higher safety message and replaces the
+    /// tutorial card while it applies — the armed prompt once it opens, and the
+    /// prerequisite while the Player is in contact with a still-locked zone.
+    private func tutorialExtractionPrompt() -> TutorialState.ExtractionPrompt? {
+        if state.extraction.armed { return .armed }
+        let position = VecI(
+            x: state.player.position.x.unitsTruncated,
+            y: state.player.position.y.unitsTruncated
+        )
+        return state.arena.extraction.aabb.contains(position) ? .lockedContact : nil
     }
 
     private mutating func fireCivicPulseIfNeeded(tick: UInt64) {

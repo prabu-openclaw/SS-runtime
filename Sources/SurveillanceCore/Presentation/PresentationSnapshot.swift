@@ -85,6 +85,9 @@ public struct PresentationSnapshot: Equatable, Sendable {
     public var upgrade: UpgradeID?
     public var upgradePending: Bool
     public var tutorialCopy: String?
+    /// True when `tutorialCopy` is a Lockdown or Extraction message rather than
+    /// a tutorial card. The tutorial setting hides cards, never safety copy.
+    public var tutorialCopyIsSafetyMessage: Bool
     public var camera: PresentationCamera
     public var handedness: Handedness
     public var extractionSeconds: Int
@@ -192,6 +195,7 @@ public struct PresentationSnapshot: Equatable, Sendable {
         upgrade = state.upgrade.selected
         upgradePending = state.upgrade.pending
         tutorialCopy = state.tutorial.copy.isEmpty ? nil : state.tutorial.copy
+        tutorialCopyIsSafetyMessage = state.tutorial.copyIsSafetyMessage
         camera = PresentationCamera.follow(
             player: VecI(x: state.player.position.x.unitsTruncated, y: state.player.position.y.unitsTruncated),
             heading: state.player.facing,

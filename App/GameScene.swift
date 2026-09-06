@@ -231,6 +231,7 @@ final class GameScene: SKScene {
             haptics: Float(settings.mix.haptics) / 100
         )
         hud.pinCameraCounter = settings.pinCameraCounter
+        hud.tutorialsEnabled = settings.tutorialsEnabled
         if let view { configureHUD(for: view) }
     }
 

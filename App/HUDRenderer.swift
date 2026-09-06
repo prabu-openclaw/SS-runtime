@@ -396,6 +396,7 @@ final class HUDRenderer {
 
     private func drawTutorial(_ snap: PresentationSnapshot, _ projector: HUDProjector) {
         guard let copy = snap.tutorialCopy, !copy.isEmpty else { return }
+        guard tutorialsEnabled || snap.tutorialCopyIsSafetyMessage else { return }
         let mapped = rect(.tutorialCard, projector)
         let centre = projector.sceneCentre(of: mapped)
         let width = projector.sceneLength(points: mapped.width)
@@ -584,6 +585,10 @@ final class HUDRenderer {
     var captions: [String] = []
     /// camera-destruction.md: the Camera counter may be pinned through settings.
     var pinCameraCounter = false
+    /// hud-tutorial-001: "Tutorial completion is a local setting." It governs
+    /// tutorial cards only — Lockdown and Extraction share the card but are
+    /// safety messages and are never suppressed by it.
+    var tutorialsEnabled = true
 
     /// Card geometry in safe-rectangle point space — the single source the
     /// drawing, the hit test, and any synthetic tap all read. Computing it

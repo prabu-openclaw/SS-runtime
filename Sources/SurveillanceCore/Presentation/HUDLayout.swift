@@ -237,12 +237,39 @@ public enum TutorialPhase: Equatable, Sendable {
 }
 
 public struct TutorialState: Equatable, Sendable {
-    public var phase: TutorialPhase
+    /// hud-tutorial-001: a card's visual duration is measured per card, so the
+    /// counter restarts whenever the phase does.
+    public var phase: TutorialPhase {
+        didSet { if phase != oldValue { phaseVisibleTicks = 0 } }
+    }
     public var displacementUnits: Int
     public var fieldTicks: Int
     public var noContactTicks: Int
     public var cameraEligibleTicks: Int
     public var lockdownPreempts: Bool
+    /// hud-tutorial-001: "Higher safety messages (lethal warning, Lockdown,
+    /// Extraction) temporarily replace it without changing tutorial progress."
+    /// Lockdown has its own flag above; this carries the Extraction pair.
+    ///
+    /// The lethal warning is deliberately absent: the specs name it as a
+    /// preemptor and as audio priority 1, but no contract gives it HUD copy,
+    /// and inventing a string here would be inventing product intent.
+    public var extractionPreempts: ExtractionPrompt?
+    /// Ticks the current card has been presented, capped so the counter cannot
+    /// run away on a long phase.
+    public private(set) var phaseVisibleTicks: Int
+
+    /// The two Extraction messages the copy table defines.
+    public enum ExtractionPrompt: Equatable, Sendable {
+        /// Player is in contact with a locked Extraction: show the prerequisite.
+        case lockedContact
+        /// Extraction is armed and open.
+        case armed
+    }
+
+    /// hud-tutorial-001: "Each card has a maximum visual duration of 300 ticks,
+    /// but its completion condition remains authoritative where specified."
+    public static let maxCardTicks = 300
 
     public init() {
         phase = .move
@@ -251,10 +278,37 @@ public struct TutorialState: Equatable, Sendable {
         noContactTicks = 0
         cameraEligibleTicks = 0
         lockdownPreempts = false
+        extractionPreempts = nil
+        phaseVisibleTicks = 0
+    }
+
+    /// True when `copy` is a safety message rather than a tutorial card.
+    ///
+    /// The tutorial setting hides tutorial cards. It must never hide Lockdown
+    /// or Extraction, which share the same card but are not tutorial content.
+    public var copyIsSafetyMessage: Bool {
+        lockdownPreempts || extractionPreempts != nil
+    }
+
+    /// Advance the current card's visual duration by one presented tick.
+    public mutating func notePresentedTick() {
+        if phaseVisibleTicks < Self.maxCardTicks { phaseVisibleTicks += 1 }
     }
 
     public var copy: String {
+        // Safety messages are read before the cap: the maximum visual duration
+        // governs tutorial cards, and a Lockdown that expired off-screen after
+        // five seconds would be a safety regression, not a tutorial one.
         if lockdownPreempts { return "LOCKDOWN" }
+        if let extractionPreempts {
+            switch extractionPreempts {
+            case .lockedContact: return HUDLayout.lockedExtractionCopy
+            case .armed: return HUDLayout.phoenixStepsOpenCopy
+            }
+        }
+        // The card retires once it has had its maximum visual duration. The
+        // phase is untouched, so the completion condition stays authoritative.
+        if phaseVisibleTicks >= Self.maxCardTicks { return "" }
         switch phase {
         case .move: return "MOVE"
         case .field: return "CAMERA FIELDS RAISE EXPOSURE"
