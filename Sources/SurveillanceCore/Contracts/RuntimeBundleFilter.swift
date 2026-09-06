@@ -28,7 +28,11 @@ public enum RuntimeBundleFilter {
         else {
             throw AssetCatalogError.invalidJSON
         }
-        return Set(visuals + audio + music)
+        // Environment art is reachable on the same footing as interface art.
+        // Optional so a spec baseline predating the array still loads; absent,
+        // environment assets are simply unreachable, which is the old behaviour.
+        let environment = root["environmentAssetIds"] as? [String] ?? []
+        return Set(visuals + audio + music + environment)
     }
 
     /// Frame IDs named by `clip-metadata-001`. A frame a clip plays is
