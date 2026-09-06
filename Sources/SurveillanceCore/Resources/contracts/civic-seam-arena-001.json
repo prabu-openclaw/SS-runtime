@@ -981,15 +981,6 @@
       }
     },
     {
-      "id": "dec-04",
-      "assetId": "env_motif_counter_signal",
-      "center": {
-        "x": 300,
-        "y": 270
-      },
-      "scalePermille": 300
-    },
-    {
       "id": "dec-05",
       "assetId": "env_prop_trolley_pole",
       "center": {
@@ -1068,15 +1059,6 @@
         "x": 1300,
         "y": 1420
       }
-    },
-    {
-      "id": "dec-15",
-      "assetId": "env_motif_repair",
-      "center": {
-        "x": 1250,
-        "y": 920
-      },
-      "scalePermille": 200
     },
     {
       "id": "dec-16",
