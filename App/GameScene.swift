@@ -236,6 +236,16 @@ final class GameScene: SKScene {
 
     func setPaused(_ paused: Bool) {
         runPaused = paused
+        // Input must not survive a pause boundary.
+        //
+        // Pause is reached by tapping the Pause control while the other hand may
+        // still be holding the stick, and SwiftUI then covers the scene — so the
+        // scene is not guaranteed to receive `touchesEnded` for that held touch.
+        // Without this the run resumes walking with no finger down, a buffered
+        // Dodge fires on the first tick back, and `stickTouch` stays bound to a
+        // token that can never end, which makes `began` refuse every future
+        // stick press for the rest of the run.
+        controller.reset()
     }
 
     override func update(_ currentTime: TimeInterval) {
@@ -326,6 +336,12 @@ final class GameScene: SKScene {
         soundEngine.reset()
         renderer.reset()
         instrumentation.reset()
+        // `GameSession.restartRun` zeroes the session's command, but the
+        // controller holds its own copy and `applyController` overwrites the
+        // session from it on the very next tick. A player who was holding the
+        // stick when the run ended would otherwise carry that heading — and
+        // that dead `stickTouch` binding — straight into the new run.
+        controller.reset()
         terminalEvidenceStored = false
         redraw()
     }
