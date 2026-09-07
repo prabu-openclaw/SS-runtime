@@ -24993,6 +24993,29 @@
         "ownerContract": "presentation-assets-001",
         "notes": "Original environment art. Solid sizes are verified against civic-seam-arena-001 rather than resampled: art that does not match its collision box is refused, because stretching a building to fit is how a player is blocked by something that looks passable."
       }
+    },
+    {
+      "admissionDecision": "originalAccepted",
+      "record": {
+        "schemaVersion": "asset-record-001",
+        "assetId": "env_prop_rail_strip",
+        "kind": "sprite",
+        "productionStatus": "accepted",
+        "runtimeRequired": true,
+        "provenance": "projectOriginal",
+        "license": "Original production for Surveillance Survivor, owner account",
+        "source": "original://Surveillance-Survivor-Art/env_prop_rail_strip.png",
+        "runtimePath": "env_prop_rail_strip@1x.png",
+        "sha256": "5e3fdb4a9ecfdd074fb750efc58902deb729ee6c097891c2636533ea57500bf1",
+        "dimensions": {
+          "width": 512,
+          "height": 128
+        },
+        "colorSpace": "sRGB",
+        "alpha": "straight",
+        "ownerContract": "presentation-assets-001",
+        "notes": "Original environment art. Solid sizes are verified against civic-seam-arena-001 rather than resampled: art that does not match its collision box is refused, because stretching a building to fit is how a player is blocked by something that looks passable."
+      }
     }
   ]
 }
